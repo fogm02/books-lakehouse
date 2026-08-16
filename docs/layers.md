@@ -59,7 +59,7 @@ stejný soubor se podruhé nezpracuje.
 Typovaná, vyčištěná, validovaná data. Full overwrite z bronze při každém
 běhu. Pravidlo pro špínu: **vadný celý řádek → karanténa s reason; vadný
 atribut → NULL, řádek zůstává.** Všechna pravidla = čisté funkce
-v `lib/transforms.py`, 47 pytest testů.
+v `lib/transforms.py`, 48 pytest testů.
 
 ### Tabulky a transformace
 
@@ -74,8 +74,10 @@ větví se sloupcem `source`:
 - *Kaggle*: posunuté řádky (nečíselný rok = rozbité escapování uvozovek)
   → `quarantine_books` (57). Oprava mojibake (zdroj je dvojitě zakódovaný
   — doloženo v raw bytech), normalizace autora (tečky, iniciály, case;
-  „Rowling“ 7 variant → 4), rok vydání mimo 1450–2026 → NULL (4 624),
-  dedup po normalizaci ISBN (314 duplicit — na raw datech 0!).
+  „Rowling“ 7 variant → 4), rok vydání mimo 1450–2004 → NULL (dolní mez
+  = knihtisk, horní = konec crawlu; obě ověřené v datech — pod rokem 1900
+  jsou v katalogu 4 knihy, nad 2004 jen 72 chybných záznamů),
+  dedup po normalizaci ISBN (314 duplicit — na raw datech 0).
 - *Open Library*: dohledané sirotčí knihy (`target='orphan'`, found,
   s titulem), stejná normalizace autora, rok z `publish_date`;
   anti-join na Kaggle ISBN — **při konfliktu vyhrává Kaggle**.
@@ -117,18 +119,23 @@ duplikace dat). Logika patří sem; dashboard datasety jsou jen tenké řezy
 (ORDER/LIMIT/parametry) — limit v goldu by rozbil filtrování a ostatní
 konzumenty.
 
-### Views
+### Views — jedno na zrnitost (grain)
 
-| view | co dělá |
-|---|---|
-| `v_top_books` | žebříček knih, vydání sloučená přes (title, author) — 17 364 vícevydáňových skupin |
-| `v_most_popular_books` | počet čtenářů vč. implicitních — popularita ≠ kvalita (Wild Animus: 2 502 čtenářů, podprůměrná známka) |
-| `v_top_authors` | žebříček autorů |
-| `v_books_by_year` | + rok prvního vydání (MIN přes vydání) — pro parametrizované „top v období“ |
-| `v_books_by_genre` | žánry z enrichmentu (jen obohacená podmnožina) |
-| `v_authors_by_year_publisher` | autor × rok × vydavatel pro filtry |
-| `v_avg_rating_by_year` | trend známek podle roku vydání |
-| `v_kpi_summary` | KPI: katalog, interakce, % implicitních, globální průměr C, efekt enrichmentu |
+Původní návrh měl osm views pojmenovaných podle panelů dashboardu; při
+revizi jsem je zredukoval na šest podle zrnitosti. Prezentační řezy
+(řazení, limity, parametry) dělají až konzumenti.
+
+| view | zrnitost | poznámka |
+|---|---|---|
+| `v_books` | kniha (title × author) | vydání sloučena (17 364 vícevydáňových skupin); `readers_total` = popularita vč. implicitních, `weighted_rating` = kvalita |
+| `v_authors` | autor | nejde odvodit z knižního grainu — vážený průměr potřebuje počty na úrovni autora |
+| `v_books_by_genre` | kniha × žánr | žánry z enrichmentu (jen obohacená podmnožina); subjects rozpadlé na atomické tokeny |
+| `v_authors_by_year_publisher` | autor × rok × vydavatel | pro filtrovatelnou analytiku |
+| `v_avg_rating_by_year` | rok vydání | trend známek |
+| `v_kpi_summary` | celý dataset | katalog, interakce, % implicitních, globální průměr C, efekt enrichmentu |
+
+Všechna views mají komentáře tabulek i sloupců v Unity Catalogu — čte je
+Catalog Explorer i Genie.
 
 ### Vážený rating
 

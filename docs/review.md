@@ -1,8 +1,15 @@
-# Komplexní revize řešení (15. 8. 2026)
+# Revize řešení v půlce projektu (15. 8. 2026)
 
-Hloubkové profilování dat (lokálně nad raw CSV) + revize kódu a designu
-proti Databricks best practices. Priority: P0 = nutné před odevzdáním,
-P1 = rychlé zlepšení, P2 = bonus/future.
+Hloubkové profilování dat (lokálně nad surovými CSV) + revize kódu
+a designu proti Databricks best practices. Priority: P0 = nutné před
+odevzdáním, P1 = rychlé zlepšení, P2 = bonus/future.
+
+> **Stav k 16. 8.:** revize splnila účel — všechna P0 a většina P1 jsou
+> vyřešené. „Most popular" pohled vznikl (a při konsolidaci goldu se
+> sloučil do `v_books`), dashboard je nasazený jako kód, mojibake (N3)
+> opravený v silveru, repo má commit historii, layers.md je dopsaná.
+> Otevřené zůstávají: deterministický dedup (K1), `is_valid_isbn` flag
+> (N6) a CI — vedené jako future improvements.
 
 ---
 

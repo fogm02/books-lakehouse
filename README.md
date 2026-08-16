@@ -1,76 +1,78 @@
 # books-lakehouse
 
-Medallion pipeline nad Kaggle [Book-Crossing datasetem](https://www.kaggle.com/datasets/arashnic/book-recommendation-dataset)
-na Databricks Free Edition, obohacená o druhý zdroj (Open Library) a
-zakončená AI/BI dashboardem.
+Medallion pipeline nad [Book-Crossing datasetem](https://www.kaggle.com/datasets/arashnic/book-recommendation-dataset)
+na Databricks Free Edition — obohacená o druhý zdroj (Open Library),
+zakončená AI/BI dashboardem a Genie agentem.
 
-**Výsledky v číslech:** 1,15M ratingů (62,3 % implicitních), katalog
-307 914 knih (36 925 dohledáno z Open Library — 62 % sirotčích ratingů
-zachráněno), žebříčky přes bayesovský vážený rating (m=25 ukotveno
-v datech), 47 unit testů, vše nasazované Asset Bundlem.
+**Výsledky v číslech:** 1,15 mil. hodnocení (62,3 % implicitních),
+katalog 307 914 knih — z toho 36 925 dohledaných z Open Library, čímž se
+zachránilo 62 % „sirotčích" hodnocení. Žebříčky stojí na bayesovském
+váženém ratingu (m = 25, ukotveno v rozdělení dat). 48 unit testů,
+všechno nasazované Asset Bundlem.
 
 ## Architektura
 
 ```
-Kaggle CSV ─┐                          ┌─ silver.ratings (is_explicit, karanténa)
-            ├→ landing volume          ├─ silver.books (Kaggle ∪ Open Library)
-Open Library┘   ↓ Auto Loader          ├─ silver.book_enrichment (žánry, author_key)
-(extraktor)   bronze (raw, append) ──→ ├─ silver.users (věk, lokace)
-                                       ↓
-                              gold: 8 views (vážený rating, KPI, trendy)
-                                       ↓
-                              AI/BI Dashboard (+ Genie)
+Kaggle (3× CSV) ──┐                          silver                 gold (6 views)
+                  ├─→ landing ─→ bronze ───→ books ∪ enrichment ──→ v_books, v_authors,
+Open Library ─────┘   volume    Auto Loader  ratings + karanténa    žánry, trendy, KPI
+(vlastní extraktor)             append-only  users                        │
+                                                              dashboard + Genie
 ```
 
-Job se 3 tasky (bronze_ingest → silver_transform → gold_views) na
-serverless, file arrival trigger připraven. Detaily: [docs/layers.md](docs/layers.md),
-rozhodnutí a proč: [docs/architecture.md](docs/architecture.md),
-celá cesta krok po kroku: [docs/journal.md](docs/journal.md).
+Bronze drží fakta tak, jak přišla. Silver dělá rozhodnutí — typy,
+pravidla, karanténa, spojení zdrojů. Gold dělá interpretace — slučování
+vydání, vážené žebříčky, jedno view na zrnitost.
+
+Kde číst dál: [architecture.md](docs/architecture.md) (diagram + decision
+log), [layers.md](docs/layers.md) (vrstvy do detailu),
+[journal.md](docs/journal.md) (celá cesta den po dni),
+[review.md](docs/review.md) (revize řešení v půlce projektu).
 
 ## Struktura repa
 
 ```
-databricks.yml              Asset Bundle (target dev, profil personal)
-resources/pipeline.job.yml  job: 3 tasky, parametry, trigger
-src/setup/init_schemas.py   jednorázové založení schémat a volumes
-src/bronze/ingest_raw.py    Auto Loader: CSV + JSONL -> bronze
-src/silver/transform.py     čištění, validace, union zdrojů
-src/silver/lib/transforms.py  čistá pravidla (testovatelná bez Sparku)
-src/gold/create_views.py    8 views: žebříčky, KPI, trendy, žánry
-scripts/                    stažení dat, upload do volume, OL extraktor
-tests/                      pytest nad transforms (47 testů)
-docs/                       layers, architecture, journal, review
-notebooks/exploration.sql   profilování bronze vrstvy
+databricks.yml                  Asset Bundle (target dev)
+resources/                      job (3 tasky, file arrival trigger), dashboard
+src/setup/init_schemas.py       jednorázové založení schémat a volumes
+src/bronze/ingest_raw.py        Auto Loader: CSV + JSONL → bronze
+src/silver/transform.py         čištění, validace, spojení zdrojů
+src/silver/lib/transforms.py    čistá pravidla — testovatelná bez Sparku
+src/gold/create_views.py        6 views s komentáři v Unity Catalogu
+src/dashboards/                 AI/BI dashboard jako JSON definice
+src/genie/                      export konfigurace Genie space
+scripts/                        stažení dat, upload, Open Library extraktor
+tests/                          pytest nad transforms (48 testů)
+docs/                           architektura, vrstvy, deník, revize
+notebooks/exploration.sql       profilování bronze vrstvy
 ```
 
 ## Spuštění
 
 ```sh
-# 1. auth (jednorázově): databricks auth login --host <workspace> --profile personal
-# 2. schémata: spusť src/setup/init_schemas.py ve workspace
-# 3. data:
-./scripts/download_data.sh          # Kaggle CSV -> data/raw
-./scripts/upload_to_volume.sh       # -> landing volume
-python3 scripts/fetch_open_library.py   # enrichment (resumable)
-# 4. deploy + běh:
+# 1) auth (jednorázově):
+databricks auth login --host <workspace-url> --profile personal
+# 2) schémata a volumes: spusť src/setup/init_schemas.py ve workspace
+# 3) data:
+./scripts/download_data.sh              # Kaggle CSV → data/raw
+./scripts/upload_to_volume.sh           # → landing volume
+python3 scripts/fetch_open_library.py   # enrichment (resumable, ~30 min)
+# 4) nasazení a běh:
 databricks bundle deploy
 databricks bundle run books_pipeline
 ```
 
-## Testy
+Testy: `pip install -r requirements-dev.txt && pytest`
 
-```sh
-pip install -r requirements-dev.txt && pytest
-```
+## Klíčová rozhodnutí ve zkratce
 
-## Klíčová rozhodnutí (zkráceně)
+- **Nula není známka.** 62 % hodnocení jsou implicitní interakce — drží
+  se s příznakem, kvalita je filtruje, popularita je potřebuje.
+- **Mazat co nejméně.** Vadný řádek → karanténa s důvodem; vadný atribut
+  → NULL. Sirotčí hodnocení zůstala — a druhý zdroj je pak zachránil.
+- **Malé vzorky lžou.** Medián 1 hodnocení na knihu → bayesovský vážený
+  rating (vzorec IMDb), m = 25 ≈ 99. percentil rozdělení.
+- **Druhý zdroj přitekl stejnou cestou jako první.** JSONL do landing
+  zóny, Auto Loader, silver — architektura se nezměnila.
 
-- **Rating 0 = implicitní feedback** (dle dokumentace datasetu) — flag,
-  ne drop; kvalita ho filtruje, popularita potřebuje.
-- **Full overwrite silver** — na této škále triviálně správné; škálovací
-  cesta (streaming + MERGE) zdokumentována.
-- **Vážený rating (IMDb vzorec), m=25** — medián 1 rating/knihu, prostý
-  průměr by vynesl knihy s jedinou desítkou.
-- **Druhý zdroj přes landing** — Open Library JSONL jde stejnou
-  bronze→silver cestou jako CSV; architektura se nezměnila.
-- Kompletní decision log s alternativami: [docs/architecture.md](docs/architecture.md)
+Kompletní decision log s alternativami: [docs/architecture.md](docs/architecture.md)

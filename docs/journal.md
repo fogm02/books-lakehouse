@@ -1,179 +1,206 @@
-# Journal — postup řešení
+# Deník řešení
 
-Chronologický deník práce a rozhodnutí. Zdroj pro finální prezentaci
-(zadání: "the journey there and potential future paths are crucial").
-Doplňuje `architecture.md` (decision log) a `layers.md` (dokumentace vrstev).
+Chronologický záznam postupu a rozhodnutí. Zadání říká, že cesta k řešení
+je důležitější než výsledek — tenhle soubor je ta cesta. Doplňuje
+`architecture.md` (souhrn rozhodnutí) a `layers.md` (dokumentace vrstev).
 
-## 14. 8. 2026 — analýza zadání a setup
+## 14. 8. — zadání, platforma, skeleton
 
-- Prostudováno zadání + dataset: Kaggle Book-Crossing (books 271k, ratings
-  1,1M, users 279k). Všimnout si: ratingy nemají timestamp → "top za období"
-  jde jen přes rok vydání (limit dat, pojmenovat v prezentaci).
-- **Platforma: Databricks Free Edition** — zdarma, serverless, UC + jobs +
-  dashboardy. Azure reálně nezapojovat (setup čas bez přidané hodnoty),
-  místo toho slide "produkční nasazení na Azure".
-- Oddělení od pracovního účtu: CLI profil `personal`, bundle na něj natvrdo
-  připnutý.
-- První skeleton: DLT (Lakeflow Declarative Pipelines) + Asset Bundle.
+Prostudoval jsem zadání a dataset: Kaggle Book-Crossing, tři CSV (271 tis.
+knih, 1,15 mil. hodnocení, 279 tis. uživatelů). Hned první čtení odhalilo
+zásadní vlastnost: hodnocení nemají timestamp, takže „top za období" půjde
+interpretovat jedině rokem vydání.
 
-## 15. 8. 2026 — přestavba na ověřený pattern, první běh
+Platformu jsem zvolil Databricks Free Edition — je zdarma, serverless
+a má Unity Catalog, joby i dashboardy. Azure jsem se rozhodl reálně
+nezapojovat: setup by stál večer a nepřidal nic, co neukážu návrhem
+produkčního nasazení v dokumentaci. Projekt jsem od začátku oddělil od
+pracovního prostředí vlastním CLI profilem, na který je bundle natvrdo
+připnutý.
 
-- **Rozhodnutí: přestavět z DLT na job + 3 notebook tasky** (bronze_ingest →
-  silver_transform → gold_views) po vzoru produkčního projektu, který znám.
-  Důvod: u pohovoru obhajuju věci s praktickou zkušeností (checkpointy,
-  idempotence, full overwrite trade-off). DLT zůstává jako future path.
-- Struktura: jeden katalog `books`, schémata `landing/bronze/silver/gold`
-  (schéma per vrstva = vzor přímo z oficiální medallion dokumentace).
-- **Research best practices** (Databricks docs) — potvrzeno: Auto Loader jako
-  triggered batch s availableNow + file arrival trigger; bronze jako stringy,
-  append-only, metadata sloupce; DAB jako doporučené CI/CD. Vědomé odchylky:
-  silver full overwrite (docs doporučují inkrement pro fakta; na 1,1M řádků
-  je rebuild v sekundách), gold jako views (docs: materializace pro výkon).
-- **Zavržené alternativy (talking points!):**
-  - Scheduled Kaggle download job — zdroj je statický snapshot, simuloval
-    by freshness, která neexistuje. Inkrementálnost se ukazuje dávkami
-    v landingu + file arrival triggerem.
-  - replaceWhere v silveru — nemá partition klíč, na který by sáhl (ratingy
-    nemají periodu); idempotenci řeší checkpoint v bronze.
-  - Hybrid (ratings streaming inkrement) — správný směr dle docs, ale
-    riziko zamotání (foreachBatch kvůli karanténě, invalidace checkpointu);
-    jde do future improvements s konkrétním postupem.
-  - SCD2 — atributy dimenzí se ve statickém snapshotu nemění, historie by
-    byla prázdná; raw historii drží append-only bronze. U živého zdroje:
-    MERGE s valid_from/valid_to, případně AUTO CDC.
-- Setup proveden: init_schemas (schémata + volumes), upload 3 CSV do
-  `/Volumes/books/landing/raw`, `bundle deploy`, první běh jobu ✅.
-- **Bronze ověřen:** books 271 360, ratings 1 149 780, users 278 859 —
-  přesně dle Kaggle. `_rescued_data` = 0 všude: NEznamená čistá data —
-  posunuté řádky jsou strukturně validní CSV, schovávají se uvnitř sloupců
-  a najde je až profilování.
-- Vytvořen explorační notebook (7 profilovacích otázek nad bronze).
+První skeleton jsem postavil nad deklarativními pipelines (DLT), ale
+ještě týž den přehodnotil — viz další záznam.
 
-## 15. 8. 2026 večer — výsledky explorace bronze (ČÍSLA do prezentace)
+## 15. 8. — přestavba na ověřený vzor, první běh
 
-- **Q1 ratings**: 62,28 % ratingů je 0 = implicitní feedback (716 109
-  z 1 149 780). Explicitních 1–10 je 433 671. Hodnoty jen 0–10, nic mimo.
-- **Q2 sirotčí ratingy**: 118 641 (~10,3 %) odkazuje na ISBN, které v books
-  není. Rozhodnout: nechat ve faktech bez joinu / oddělit / dropnout.
-- **Q3 rok vydání**: 4 618× rok 0, 11× budoucnost (max 2050), 57 řádků
-  s nečíselným rokem = posunuté sloupce. Příčina posunů: tituly s vnořenými
-  uvozovkami escapovanými `\"` (dataset míchá escape styly) — CSV parser
-  s default escape nastavením sloupce rozhodí. ~0,02 % dat.
-- **Q4 duplicitní ISBN**: ŽÁDNÉ (na raw hodnotách). Ověřit ještě po
-  UPPER/TRIM normalizaci (case varianty '...x' vs '...X').
-- **Q5 autoři**: "Rowling" má 7 variant zápisu (J. K. / J.K. / Joanne K. /
-  J .K. / ROWLING / Rowling J K...). Pro gold žebříčky autorů je normalizace
-  nutná; dokonalá kanonizace bez externího zdroje nejde — pojmenovat limit.
-- **Q6 age**: hodnoty jsou desetinné stringy ("25.0") → TRY_CAST na INT
-  selhává na všem. Lekce: profilovací dotaz musí sedět na formát dat
-  (falešných 100 % špíny). Přepočítat přes DOUBLE→INT, pak teprve rozsahy.
-- **Q7 location**: 276 694 řádků (99,2 %) má přesně 3 části; 657× 2 části,
-  9× 1 část, ~1 500× více než 3 (čárky uvnitř názvů). Pravidlo: happy path
-  3 části; rozhodnout fallbacky.
+Rozhodl jsem se přestavět řešení z DLT na klasický job se třemi notebook
+tasky (bronze_ingest → silver_transform → gold_views), podle vzoru
+produkčního projektu, který znám z praxe. Důvod: chci obhajovat
+architekturu, se kterou mám zkušenost — checkpointy, idempotenci,
+trade-off full overwrite — a ne technologii nastudovanou přes noc.
+Deklarativní pipelines zůstávají jako budoucí cesta.
 
-## 15. 8. 2026 — rozhodnutí čistících pravidel (po diskusi)
+Strukturu jsem ověřil proti oficiální dokumentaci medallion architektury:
+jeden katalog, schéma na vrstvu (`landing/bronze/silver/gold`) je přímo
+vzor z docs. Potvrdily se i další volby: Auto Loader jako triggered batch
+s `availableNow` a file arrival triggerem, bronze jako append-only stringy
+s metadata sloupci, Asset Bundle jako doporučené CI/CD. Vědomě se
+odchyluji ve dvou bodech: silver dělám full overwrite (docs doporučují
+inkrement pro fakta; na 1,1M řádků je rebuild otázka sekund) a gold jako
+obyčejné views (materializace je optimalizace, kterou tahle velikost dat
+nepotřebuje).
 
-1. Implicitní nuly: nechat s flagem `is_explicit` (signál pro recommender).
-2. Sirotčí ratingy: nechat v silveru, vyřadí je až inner join v goldu —
-   vadné není hodnocení, ale pokrytí katalogu. 118k ISBN = kandidáti na
-   Open Library enrichment.
-3. Posunuté řádky books: karanténa (0,02 %); oprava CSV escape jako future
-   improvement (dataset míchá `\"` i `"""` styly, jedno nastavení nestačí).
-4. Age: mimo rozsah 5–100 → NULL atributu (řádek zůstává). Pozor: hodnoty
-   jsou "25.0" → cast přes DOUBLE→INT.
-5. Location: parsování zprava OVĚŘENO na datech — 4 578 řádků s prázdnou
-   poslední částí ("portland, ,"), dvoudílné jsou hlavně "city, n/a"
-   s escape smetím (`\n/a"` — stejný nepořádek jako v Books.csv), vícedílné
-   fungují ("...england, united kingdom"). Pravidlo: split → trim → očistit
-   `\`/`"`/`)` → placeholdery ('', n/a, -) NULL → country=poslední,
-   state=předposlední, city=zbytek. Perla do prezentace: "paris, alabama,
-   gambia, the" → country "the".
-- Lekce: exploraci raw CSV dělat lokálně (soubory jsou v data/raw),
-  warehouse až na Spark/Delta věci.
+Alternativy, které jsem zvážil a zavrhl:
 
-## 15. 8. 2026 — implementace čistících funkcí
+- **Plánované stahování z Kaggle** — zdroj je statický snapshot; denní
+  download by simuloval čerstvost, která neexistuje.
+- **replaceWhere v silveru** — nemá partition klíč, na který by sáhl;
+  idempotenci opakovaných běhů řeší checkpoint v bronze.
+- **Inkrementální silver (streaming)** — správný směr podle dokumentace,
+  ale za cenu složitosti (foreachBatch kvůli karanténě, invalidace
+  checkpointu při změně logiky), která se na této velikosti nevrátí.
+  Jde do future improvements s konkrétním postupem.
+- **SCD2** — atributy dimenzí se ve statickém snapshotu nemění, historie
+  by byla prázdná; surovou historii navíc drží append-only bronze.
+  U živého zdroje bych sáhl po MERGE s valid_from/valid_to.
 
-- `lib/transforms.py`: clean_year, clean_age, parse_location,
-  normalize_author — přesně dle 5 rozhodnutí výše. 39 pytest testů zeleně;
-  testovací případy = reálné hodnoty z explorace ("25.0", "portland, ,",
-  `tel-aviv, \n/a"`, "DK Publishing Inc" v roce vydání...).
-- Vědomé limity normalize_author zdokumentované v docstringu (přehozené
-  pořadí jména, zkratka vs. plné jméno, částice van/der).
+Odpoledne proběhl setup (schémata, volumes, upload CSV) a první běh jobu.
+Bronze sedí přesně na publikované počty datasetu. Zajímavý detail:
+`_rescued_data` je všude prázdný — což neznamená čistá data. Poškozené
+řádky Books.csv jsou strukturně validní CSV a schovávají se uvnitř
+sloupců; najde je až profilování.
 
-## 15. 8. 2026 — silver v provozu (ČÍSLA)
+## 15. 8. — profilování bronze
 
-- Běh pipeline ✅ (bronze → silver → gold za ~2 min na serverless).
-- ratings 1 149 780 (karanténa 0 — hodnoty čisté dle explorace),
-  books 270 989 (57 posunutých v karanténě s reason, 314 duplicit po
-  UPPER/TRIM — na raw datech 0! → dedup se dělá až po normalizaci),
-  users 278 859 (řádky zachovány, čistily se atributy).
-- Věk NULL: 112 432 (40,3 %) — skutečné číslo po opravě castu přes double.
-- Rok vydání NULL: 4 624. Rowling: 7 variant → 4 (3 zbylé = dokumentované
-  limity; "Marjorie Rowling" je reálná jiná autorka — proto se neslučuje
-  agresivně).
+Sedm profilovacích dotazů nad bronze vrstvou, výsledky:
 
-## 15. 8. 2026 — gold vrstva (vážený rating, m ukotveno v datech)
+- **62,28 % hodnocení je nula** (716 109 z 1 149 780). Podle dokumentace
+  datasetu nula není známka, ale implicitní interakce — uživatel knihu
+  zalogoval bez hodnocení. Explicitních známek 1–10 je 433 671.
+- **118 641 hodnocení (10,3 %) odkazuje na ISBN, které v katalogu není.**
+- Rok vydání: 4 618× hodnota 0, 11× rok v budoucnosti, 57 řádků
+  s nečíselným rokem — to jsou ty posunuté sloupce; příčinou je
+  nekonzistentní escapování uvozovek v titulech.
+- Duplicitní ISBN: na surových hodnotách žádné.
+- Autor „Rowling" existuje v sedmi variantách zápisu.
+- Věk je uložený jako desetinný string („25.0") — první profilovací dotaz
+  s přímým castem na int hlásil 100 % nevalidních hodnot. Falešný poplach
+  a dobrá lekce: profilovací dotaz musí sedět na skutečný formát dat.
+- Location má u 99,2 % řádků přesně tři části „city, state, country";
+  zbytek jsou prázdné části, chybějící stát nebo čárky v názvech.
 
-- Volba m=25 podložena: medián ratingů/knihu = 1, p99 = 22 → m≈p99;
-  citlivostní analýza m=10/25/50: špička stabilní, pozice 5-10 se posouvají
-  nika↔mainstream. Vzorec = bayesovský průměr (IMDb Top 250).
-- Nález z citlivostní analýzy: žebříček po ISBN = žebříček VYDÁNÍ (Azkaban
-  2× v top 10) → gold agreguje přes (title, author), sloupec editions.
-- normalize_author rozšířen: iniciály bez tečky ("J.K Rowling" →
-  "J. K. Rowling") — jinak by se vydání nesloučila. 41 testů zeleně.
-- v_top_books, v_top_authors, v_authors_by_year_publisher nasazeny; top 10
-  věrohodné (Tolkien, Rowling, Harper Lee, Malý princ), Azkaban sloučen
-  (3 vydání, 277 ratingů), Two Towers 10 vydání.
-- Nové nálezy z výstupu: (1) encoding mojibake "Saint-Exupã©Ry" — zdroj je
-  latin-1, čteme UTF-8 → rozhodnout: encoding option v bronze + reingest,
-  nebo dokumentovaný limit; (2) HP Stone 2× kvůli variantě titulu
-  ("(Book 1)" vs "(Paperback)") — očekávaný, dokumentovaný limit slučování.
+Lekce z procesu: profilování surových CSV je rychlejší lokálně než přes
+warehouse; na Spark má smysl až to, co potřebuje Deltu.
 
-## 15. 8. 2026 — komplexní revize (docs/review.md)
+## 15. 8. — pravidla čištění
 
-- Hloubkové profilování lokálně nad raw CSV + revize kódu a scorecard
-  vůči best practices. Klíčové: chybí pohled "most popular" (zadání a) —
-  Wild Animus story; top 1 % uživatelů = 48,3 % ratingů; mojibake je
-  zapečený ve zdroji (doloženo byty) — pipeline je nevinná; 0 duplicitních
-  (user,isbn) párů = gold agregace korektní; 17 364 skupin vydání.
-- Plný report s P0/P1/P2 plánem: docs/review.md.
+Pět rozhodnutí, každé s důvodem:
 
-## 16. 8. 2026 — Open Library enrichment v provozu (ČÍSLA)
+1. **Implicitní nuly zůstávají** s příznakem `is_explicit` — metriky
+   kvality je odfiltrují, metriky popularity je potřebují.
+2. **Sirotčí hodnocení zůstávají v silveru** — vadné není hodnocení, ale
+   pokrytí katalogu. (Tohle rozhodnutí se později ukázalo jako klíčové —
+   umožnilo díru v katalogu opravit druhým zdrojem.)
+3. **Posunuté řádky do karantény** s důvodem — 0,02 % dat, oprava
+   escapování ve zdroji nemá smysl (míchá dva styly).
+4. **Věk mimo 5–100 → NULL atributu**, řádek uživatele zůstává.
+5. **Location parsovat pozičně zprava** — země je nejspolehlivější část.
+   Pravidlo jsem ověřil na datech: 4 578 řádků má prázdnou zemi
+   („portland, ,"), dvoudílné hodnoty jsou většinou „city, n/a".
 
-- Staženo 63 457 ISBN (61 457 sirotčích + top 2 000 katalogu) přes batch
-  Books API; s archive.org auth ~3 req/s. Resumable skript
-  (scripts/fetch_open_library.py), zdroj = dva JSONL soubory v landingu
-  (inkrementální dodávka druhého zdroje - Auto Loader je sebral sám).
-- **Katalog narostl o 36 925 dohledaných knih** (source='open_library';
-  Kaggle 270 989). Enrichment tabulka: 38 933 ISBN se žánry/author_key
-  (36 933 orphan + 2 000 catalog - top katalog měl 100% hit rate).
-- **Sirotčí ratingy: 118 752 → 44 589** (zachráněno 62 %; explicitních
-  známek se do žebříčků vrátilo ~30 tisíc, zbývá 19 718).
-- Zbytek nedohledatelný: 8 915 nevalidních ISBN + ISBN neznámá Open Library.
-- Debug poznámky: macOS Python bez CA certifikátů (fix: certifi);
-  ANSI mód na serverless -> get(authors, 0) místo authors[0].
-- Dashboard staví MF ručně v UI (učení) - 4 gold views + kpi dataset.
+Implementace: čisté funkce v `lib/transforms.py`, testy s reálnými
+hodnotami z profilování („25.0", „portland, ,", „DK Publishing Inc"
+ve sloupci roku).
 
-## 16. 8. 2026 — dashboard jako kód, Genie, konsolidace goldu
+## 15. 8. — silver v provozu
 
-- Dashboard postaven jako kód (lvdash.json) a nasazován bundlem; parametry
-  (:year_range, :genre) se aplikují před LIMIT — filtry fungují korektně
-  (widget-level limit nejde: grafy ořezávají na 10k řádků).
-- Žánry: OL subjects jsou knihovnické hlavičky s čárkami uvnitř
-  ("Fiction, Fantasy, General" = jeden string) → rozpad na atomické tokeny.
-- Horní mez roku vydání 2026 → 2004 (konec crawlu; ověřeno: jen 72 knih
-  a 205 ratingů nad 2004, vesměs chyby). Dolní mez 1450 ověřena: pod 1900
-  jen 4 knihy, z toho 2 s rokem v PERSKÉM kalendáři (1376 SH ≈ 1997).
-  Klíčový koncept: sloupec = rok VYDÁNÍ (edice s ISBN), ne vzniku díla.
-- **Konsolidace goldu 8 → 6 views: jedno view na GRAIN, ne na use-case**
-  (v_top_books + v_most_popular_books + v_books_by_year → v_books;
-  v_top_authors → v_authors). Autorský grain nejde odvodit z knižního
-  (bayes potřebuje v a R na úrovni autora). Prezentační řezy dělají
-  konzumenti. Genie space (zakládá MF v UI) dostane 6 gold views.
+První plný běh čištění: ratings 1 149 780 (karanténa prázdná — hodnoty
+jsou čisté), books 270 989 (57 posunutých v karanténě, 314 duplicit
+odstraněných po normalizaci ISBN — na surových datech nebyly vidět),
+users 278 859. Věk je NULL u 112 432 uživatelů (40,3 %), rok vydání
+u 4 624 knih. Normalizace autorů sjednotila „Rowling" ze 7 variant na 4 —
+zbylé tři jsou dokumentované limity (mj. „Marjorie Rowling" je skutečná
+jiná autorka, proto se neslučuje agresivně).
 
-## Do prezentace nezapomenout
+## 15. 8. — gold a vážený rating
 
-- Čísla ze špíny dat (doplní se z explorace do layers.md).
-- Příběh "_rescued_data=0 ≠ čistá data".
-- Vědomá jednoduchost + jasná škálovací cesta > složitost napůl pochopená.
-- Demo naživo: druhá dávka ratingů → file arrival trigger → dashboard.
+Medián hodnocení na knihu je 1 — prostý průměr by žebříček rozbil.
+Použil jsem bayesovský vážený průměr (vzorec IMDb Top 250) s m = 25:
+hodnota odpovídá 99. percentilu rozdělení (p99 = 22) a citlivostní
+analýza m = 10/25/50 ukázala stabilní špičku žebříčku, mění se jen
+pozice 5–10.
+
+Citlivostní analýza přinesla i vedlejší nález: žebříček po ISBN je ve
+skutečnosti žebříček *vydání* — Azkaban byl v top 10 dvakrát. Gold proto
+agreguje přes (title, author) a eviduje počet sloučených vydání. Kvůli
+slučování jsem rozšířil normalizaci autorů o iniciály bez tečky
+(„J.K Rowling" → „J. K. Rowling").
+
+Ve výstupu se poprvé zviditelnil rozbitý text („Saint-Exupã©Ry") —
+poznamenáno k prošetření.
+
+## 15. 8. — revize celého řešení
+
+Hloubkové profilování surových dat + revize kódu proti best practices
+(plný report: `review.md`). Hlavní nálezy:
+
+- Chyběl pohled „most popular" — popularita (počet interakcí) je jiná
+  metrika než kvalita (známky) a zadání ji explicitně nabízí. Podle počtu
+  interakcí vede Wild Animus (2 502 čtenářů) — kniha, která se masově
+  rozdávala zdarma a má podprůměrné známky.
+- **Top 1 % uživatelů vytvořilo 48,3 % všech hodnocení** — dataset
+  popisuje chování malé skupiny power-users.
+- Rozbitý text je **zapečený přímo ve zdrojových bytech** (dvojité
+  kódování před publikací na Kaggle) — doloženo pohledem do surového
+  souboru; čtení v pipeline je korektní.
+- 0 duplicitních párů (uživatel, kniha) — agregace nepočítají nic dvakrát.
+- 17 364 skupin (title, author) má víc než jedno ISBN — slučování vydání
+  ovlivňuje podstatnou část katalogu.
+
+## 16. 8. — druhý zdroj: Open Library
+
+Napsal jsem extraktor nad Open Library Books API (batch dotazy po 50
+ISBN, autentizace archive.org klíči ~3 req/s, resumable běh) a stáhl
+metadata pro 63 457 ISBN: všechna dohledatelná sirotčí + top 2 000
+katalogu kvůli žánrům. Data přitekla jako JSONL do landing zóny — stejnou
+cestou jako CSV, ve dvou dávkách, které si Auto Loader sebral sám.
+
+Výsledek: katalog narostl o 36 925 dohledaných knih, sirotčích hodnocení
+ubylo z 118 752 na 44 589 (62 %) a do žebříčků se vrátilo ~30 tisíc
+explicitních známek. Enrichment tabulka nese žánry a stabilní ID autorů
+(`author_key`) pro 38 933 ISBN; top 2 000 katalogu mělo 100% úspěšnost.
+Zbytek je nedohledatelný: 8 915 ISBN má nevalidní formát, ostatní Open
+Library nezná.
+
+Provozní poznámky: macOS Python bez CA certifikátů (řešení: certifi);
+ANSI mód na serverless vyžaduje `get(authors, 0)` místo indexace pole.
+
+## 16. 8. — dashboard jako kód, mez roku, žánry
+
+Dashboard jsem postavil jako JSON definici nasazovanou bundlem. Klíčové
+poučení z první (klikané) verze: limity a řazení patří do SQL datasetů,
+ne do widgetů — grafy ořezávají na 10 tisíc řádků a filtr aplikovaný po
+limitu vrací nesmysly. „Top 10 v období" proto řeší parametry
+(`:year_range`, `:genre`), které se vykonají před limitem.
+
+Dvě korekce podložené surovými daty:
+
+- **Horní mez roku vydání 2026 → 2004** (konec crawlu). Nad rokem 2004 je
+  jen 72 knih s 205 hodnoceními — vesměs předprodejní metadata a překlepy.
+- **Dolní mez 1450 obstála**: pod rokem 1900 jsou v katalogu 4 knihy,
+  z toho dvě jsou moderní íránské romány s rokem v perském kalendáři
+  (1376 SH ≈ 1997). Sloupec je rok vydání *edice*, ne vzniku díla.
+
+Žánry z Open Library se ukázaly být knihovnické hlavičky s čárkami uvnitř
+(„Fiction, Fantasy, General" je jeden řetězec) — rozpadl jsem je na
+atomické tokeny a vyhodil balast typu „General". I tak zůstávají
+folksonomií: míchají žánry, místa („Middle Earth"), série i jazyky.
+
+## 16. 8. — konsolidace goldu, metadata, Genie
+
+Gold jsem zredukoval z osmi views na šest podle pravidla **jedno view na
+zrnitost**: tři knižní views se sloučily do `v_books` (popularita
+i kvalita v jednom řádku), `v_top_authors` se přejmenoval na `v_authors`.
+Autorský grain z knižního odvodit nejde — vážený průměr potřebuje počty
+známek na úrovni autora.
+
+V silveru přibyla oprava dvojitě zakódovaného textu (`fix_mojibake`) —
+„Antoine De Saint-Exupéry" je konečně čitelný. Všechna gold views dostala
+komentáře tabulek i sloupců v Unity Catalogu.
+
+Nad gold vrstvou vznikl Genie space (6 views + instrukce o sémantice:
+nula = implicitní, weighted_rating pro „nejlepší", readers_total pro
+„nejčtenější", práh 25 známek). Test otázkou „Which books are most read
+but poorly rated?" — agent sám použil práh z instrukcí, správně rozlišil
+popularitu od kvality a odpověděl Wild Animus. Konfigurace space je
+exportovaná v repu, dashboard má tlačítko Ask Genie.
