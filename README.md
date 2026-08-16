@@ -28,11 +28,11 @@ končí v karanténě s uvedeným důvodem; vadné atributy se nulují a řádek
 zůstává. Gold má šest views, jedno na zrnitost: tam žijí agregace,
 slučování vydání a vážený rating.
 
-Kde číst dál: [architecture.md](docs/architecture.md) obsahuje decision
-log (17 rozhodnutí, každé s alternativou), [layers.md](docs/layers.md)
-popisuje vrstvy do detailu, [journal.md](docs/journal.md) je deník celého
-postupu a [review.md](docs/review.md) revize, kterou jsem si udělal
-v půlce projektu.
+Kde číst dál: [architecture.md](docs/architecture.md) shrnuje
+nejdůležitější rozhodnutí, [layers.md](docs/layers.md) popisuje vrstvy do
+detailu, [journal.md](docs/journal.md) je deník celého postupu
+a [review.md](docs/review.md) revize, kterou jsem si udělal v půlce
+projektu.
 
 ## Struktura repa
 
