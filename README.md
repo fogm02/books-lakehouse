@@ -84,5 +84,5 @@ prostý průměr by vyhrávaly knihy s jedinou desítkou. Používám proto
 bayesovský vážený rating (vzorec známý z IMDb Top 250) s m = 25, což
 odpovídá 99. percentilu rozdělení; citlivost jsem ověřil pro m = 10/25/50.
 
-Kompletní decision log včetně zavržených alternativ:
-[docs/architecture.md](docs/architecture.md)
+Úvahy za dalšími rozhodnutími, včetně slepých uliček, jsou
+v [docs/journal.md](docs/journal.md).
