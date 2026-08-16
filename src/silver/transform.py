@@ -4,7 +4,7 @@
 Full overwrite z bronze při každém běhu: na 1,1M řádků otázka sekund,
 změna pravidla = nový běh, bronze se nikdy nemění. Pravidlo pro špínu:
 vadný celý řádek jde do karantény s důvodem, vadný atribut se NULLuje
-a řádek zůstává. Zdůvodnění jednotlivých pravidel: docs/journal.md.
+a řádek zůstává. Zdůvodnění pravidel: docs/architecture.md.
 
 Parametry (z notebook_task.base_parameters):
     catalog, schema_bronze, schema_silver

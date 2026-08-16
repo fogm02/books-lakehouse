@@ -29,10 +29,8 @@ zůstává. Gold má šest views, jedno na zrnitost: tam žijí agregace,
 slučování vydání a vážený rating.
 
 Kde číst dál: [architecture.md](docs/architecture.md) shrnuje
-nejdůležitější rozhodnutí, [layers.md](docs/layers.md) popisuje vrstvy do
-detailu, [journal.md](docs/journal.md) je deník celého postupu
-a [review.md](docs/review.md) revize, kterou jsem si udělal v půlce
-projektu.
+nejdůležitější rozhodnutí, [layers.md](docs/layers.md) popisuje vrstvy
+do detailu.
 
 ## Struktura repa
 
@@ -84,5 +82,5 @@ prostý průměr by vyhrávaly knihy s jedinou desítkou. Používám proto
 bayesovský vážený rating (vzorec známý z IMDb Top 250) s m = 25, což
 odpovídá 99. percentilu rozdělení; citlivost jsem ověřil pro m = 10/25/50.
 
-Úvahy za dalšími rozhodnutími, včetně slepých uliček, jsou
-v [docs/journal.md](docs/journal.md).
+Další rozhodnutí a limity dat shrnuje
+[docs/architecture.md](docs/architecture.md).

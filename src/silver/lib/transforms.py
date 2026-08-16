@@ -1,7 +1,7 @@
 """Čistící pravidla jako čisté funkce - bez Sparku, bez Databricks.
 
 Testují se pytestem lokálně (tests/test_transforms.py); pipeline je volá
-přes UDF. Pravidla vycházejí z profilování dat, viz docs/journal.md.
+přes UDF. Pravidla vycházejí z profilování dat.
 """
 
 from __future__ import annotations
@@ -88,7 +88,7 @@ def fix_mojibake(raw: str | None) -> str | None:
     """Opraví text dvojitě zakódovaný ve zdroji ("Saint-ExupÃ©ry" -> "Saint-Exupéry").
 
     Books.csv obsahuje UTF-8 bajty omylem překódované přes latin-1 už od
-    vydavatele datasetu (doloženo v raw bytech, viz journal). Oprava je
+    vydavatele datasetu (doloženo pohledem do raw bajtů). Oprava je
     inverzní krok: encode latin-1 -> decode utf-8, opakovaně dokud text
     "ozdravuje". Bezpečnost: korektní text (i s diakritikou) projde beze
     změny - encode/decode na něm selže nebo vrátí identitu.

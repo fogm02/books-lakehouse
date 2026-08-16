@@ -43,7 +43,6 @@ citlivostní analýzou.
 konzumenti — díky tomu stejných šest views krmí dashboard, ad-hoc SQL
 i Genie agenta.
 
-Kompletní úvahy včetně slepých uliček jsou v `journal.md`.
 
 ## Limity dat
 

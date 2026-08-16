@@ -105,9 +105,7 @@ Odděleně od `books`: je to volitelné obohacení, ne katalog.
 
 ### Edge cases
 
-- Duplicitní (user, isbn) páry: 0 → agregace bez dvojího počítání.
 - Referenční integrita users: 100 % (sirotci jen na straně books).
-- ANSI mód na serverless: `get(authors, 0)` místo `authors[0]`.
 
 ---
 
@@ -153,16 +151,8 @@ ratingem 10 (185 841 hodnocených knih, medián 1 rating).
   vydání (parametry `:od_roku`/`:do_roku`), ne časem hodnocení.
 - **Top 1 % uživatelů = 48,3 % ratingů** — data popisují chování malé
   skupiny power-users.
-- Trend podle roku: survivorship bias (staré roky = jen přeživší
-  klasiky), crawl končí 09/2004.
 - Slučování přes title: varianty titulu vydání se nesloučí dokonale
   („(Book 1)“ vs „(Paperback)“).
 
 ---
 
-## Future improvements
-
-Inkrementální silver (streaming + MERGE), plný katalog z OL data dumpů,
-identity resolution autorů přes `author_key`, materialized views pro
-výkon dashboardu, GitHub Actions na pytest, DLT/Lakeflow Declarative
-Pipelines jako deklarativní alternativa, lakehouse monitoring + alerting.

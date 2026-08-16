@@ -1,7 +1,7 @@
 """Testy čistých funkcí ze src/silver/lib/transforms.py.
 
-Testovací případy jsou reálné hodnoty nalezené při exploraci bronze
-vrstvy (viz docs/journal.md). Spuštění z rootu repa: pytest
+Testovací případy jsou reálné hodnoty nalezené při profilování dat.
+Spuštění z rootu repa: pytest
 """
 
 import pytest
