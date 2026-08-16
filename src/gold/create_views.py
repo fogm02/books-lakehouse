@@ -141,4 +141,86 @@ print(f"✓ {gold}.v_most_popular_books")
 
 # COMMAND ----------
 
+spark.sql(f"""
+CREATE OR REPLACE VIEW {gold}.v_books_by_year
+COMMENT 'Knihy s rokem prvního vydání (MIN přes vydání) - pro interaktivní "top N v období". Období = rok VYDÁNÍ, ratingy timestamp nemají.'
+AS
+WITH explicit AS (
+  SELECT r.rating, b.title, b.author, b.year_of_publication
+  FROM {silver}.ratings r
+  JOIN {silver}.books b ON r.isbn = b.isbn
+  WHERE r.is_explicit
+),
+g AS (SELECT AVG(rating) AS c FROM explicit),
+per_book AS (
+  SELECT title, author,
+         MIN(year_of_publication) AS year_of_publication,
+         COUNT(*) AS ratings_cnt,
+         AVG(rating) AS avg_rating
+  FROM explicit
+  GROUP BY title, author
+)
+SELECT title, author, year_of_publication, ratings_cnt,
+  ROUND(avg_rating, 2) AS avg_rating,
+  ROUND((ratings_cnt / (ratings_cnt + {m})) * avg_rating
+      + ({m} / (ratings_cnt + {m})) * g.c, 3) AS weighted_rating
+FROM per_book CROSS JOIN g
+""")
+print(f"✓ {gold}.v_books_by_year")
+
+# COMMAND ----------
+
+spark.sql(f"""
+CREATE OR REPLACE VIEW {gold}.v_books_by_genre
+COMMENT 'Knihy rozpadlé po žánrech (subjects z Open Library, jen obohacené knihy). Žánry jsou free-text - kniha má typicky víc žánrů.'
+AS
+WITH explicit AS (
+  SELECT r.rating, b.title, b.author, b.isbn
+  FROM {silver}.ratings r
+  JOIN {silver}.books b ON r.isbn = b.isbn
+  WHERE r.is_explicit
+),
+g AS (SELECT AVG(rating) AS c FROM explicit),
+per AS (
+  SELECT INITCAP(TRIM(genre)) AS genre, e.title, e.author,
+         COUNT(*) AS ratings_cnt, AVG(e.rating) AS avg_rating
+  FROM explicit e
+  JOIN {silver}.book_enrichment en ON e.isbn = en.isbn
+  LATERAL VIEW EXPLODE(en.subjects) s AS genre
+  GROUP BY INITCAP(TRIM(genre)), e.title, e.author
+)
+SELECT genre, title, author, ratings_cnt,
+  ROUND(avg_rating, 2) AS avg_rating,
+  ROUND((ratings_cnt / (ratings_cnt + {m})) * avg_rating
+      + ({m} / (ratings_cnt + {m})) * g.c, 3) AS weighted_rating
+FROM per CROSS JOIN g
+""")
+print(f"✓ {gold}.v_books_by_genre")
+
+# COMMAND ----------
+
+spark.sql(f"""
+CREATE OR REPLACE VIEW {gold}.v_kpi_summary
+COMMENT 'KPI pro dashboard: velikost katalogu, interakce, podíl implicitních, globální průměr známek (C ze vzorce), efekt enrichmentu.'
+AS
+WITH r AS (
+  SELECT rt.is_explicit, rt.rating, b.isbn IS NOT NULL AS has_book, b.source
+  FROM {silver}.ratings rt
+  LEFT JOIN {silver}.books b ON rt.isbn = b.isbn
+)
+SELECT
+  (SELECT COUNT(*) FROM {silver}.books)                                  AS books_in_catalog,
+  (SELECT COUNT(*) FROM {silver}.books WHERE source = 'open_library')    AS books_recovered,
+  COUNT(*)                                                               AS interactions_total,
+  SUM(CASE WHEN is_explicit THEN 1 ELSE 0 END)                           AS ratings_explicit,
+  ROUND(100 * (1 - SUM(CASE WHEN is_explicit THEN 1 ELSE 0 END) / COUNT(*)), 1) AS implicit_pct,
+  ROUND(AVG(CASE WHEN is_explicit THEN rating END), 2)                   AS avg_rating_explicit,
+  SUM(CASE WHEN has_book AND source = 'open_library' THEN 1 ELSE 0 END)  AS ratings_recovered,
+  SUM(CASE WHEN NOT has_book THEN 1 ELSE 0 END)                          AS ratings_orphaned
+FROM r
+""")
+print(f"✓ {gold}.v_kpi_summary")
+
+# COMMAND ----------
+
 print("Gold views vytvořeny.")
