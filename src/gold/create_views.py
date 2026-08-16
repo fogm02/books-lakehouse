@@ -223,4 +223,22 @@ print(f"✓ {gold}.v_kpi_summary")
 
 # COMMAND ----------
 
+spark.sql(f"""
+CREATE OR REPLACE VIEW {gold}.v_avg_rating_by_year
+COMMENT 'Průměrná explicitní známka podle roku vydání knihy (vážená přes hodnocení). Pozor při čtení: starší roky = survivorship bias, po 2004 crawl končí.'
+AS
+SELECT
+  b.year_of_publication,
+  COUNT(DISTINCT b.isbn)      AS books_cnt,
+  COUNT(*)                    AS ratings_cnt,
+  ROUND(AVG(r.rating), 2)     AS avg_rating
+FROM {silver}.ratings r
+JOIN {silver}.books b ON r.isbn = b.isbn
+WHERE r.is_explicit AND b.year_of_publication IS NOT NULL
+GROUP BY b.year_of_publication
+""")
+print(f"✓ {gold}.v_avg_rating_by_year")
+
+# COMMAND ----------
+
 print("Gold views vytvořeny.")
