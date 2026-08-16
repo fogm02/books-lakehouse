@@ -1,0 +1,9 @@
+resources:
+  dashboards:
+    books_dashboard:
+      display_name: "Books Lakehouse"
+      file_path: ../src/dashboards/books_lakehouse.lvdash.json
+      warehouse_id: c4a74f83dd50f16b
+      # publikovaná verze nese credentials publishera - interviewer nepotřebuje
+      # přístup k warehouse
+      embed_credentials: true
