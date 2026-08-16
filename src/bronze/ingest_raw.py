@@ -72,4 +72,47 @@ def ingest(name: str, pattern: str) -> None:
 for _name, _pattern in SOURCES.items():
     ingest(_name, _pattern)
 
+# COMMAND ----------
+
+# --- druhý zdroj: Open Library JSONL (dohledané sirotčí knihy + obohacení) ---
+# Na rozdíl od CSV tady typy inferujeme: data jsou strojově generovaná naším
+# skriptem (scripts/fetch_open_library.py), schéma je stabilní a vnořené
+# (authors: array<struct>, subjects: array<string>).
+
+OL_PATH = f"{landing_base}/open_library/"
+
+
+def _path_exists(path: str) -> bool:
+    try:
+        dbutils.fs.ls(path)
+        return True
+    except Exception:
+        return False
+
+
+if _path_exists(OL_PATH):
+    target = f"{catalog}.{schema_bronze}.open_library"
+    print(f"Spouštím stream open_library -> {target}")
+    ol_stream = (
+        spark.readStream.format("cloudFiles")
+        .option("cloudFiles.format", "json")
+        .option("cloudFiles.inferColumnTypes", "true")
+        .option("cloudFiles.schemaLocation", f"{checkpoint_base}/open_library_schema")
+        .option("cloudFiles.rescuedDataColumn", "_rescued_data")
+        .load(OL_PATH)
+        .withColumn("_source_file", F.col("_metadata.file_path"))
+        .withColumn("_ingested_at", F.current_timestamp())
+    )
+    (
+        ol_stream.writeStream
+        .option("checkpointLocation", f"{checkpoint_base}/open_library")
+        .option("mergeSchema", "true")
+        .trigger(availableNow=True)
+        .toTable(target)
+        .awaitTermination()
+    )
+    print(f"✓ {target}")
+else:
+    print(f"Open Library landing ({OL_PATH}) zatím neexistuje - přeskakuji.")
+
 print("Bronze ingest dokončen.")

@@ -106,6 +106,10 @@ overwrite(ratings, f"{silver}.ratings")
 # Posunuté řádky: rok vydání vyplněný, ale nečíselný (autor/text ve sloupci
 # roku) => celý řádek je nedůvěryhodný -> karanténa. Rok "0" a budoucnost
 # jsou formátově validní řádky -> zůstávají, jen rok -> NULL (clean_year).
+# Katalog = Kaggle (source='kaggle') + knihy dohledané z Open Library pro
+# sirotčí ISBN (source='open_library', jen ty co v Kaggle nejsou).
+
+has_open_library = spark.catalog.tableExists(f"{bronze}.open_library")
 
 books_raw = spark.table(f"{bronze}.books")
 
@@ -118,7 +122,7 @@ quarantined_books = books_raw.where(shifted_cond).withColumn(
 )
 overwrite(quarantined_books, f"{silver}.quarantine_books")
 
-books = (
+books_kaggle = (
     books_raw.where(~shifted_cond)
     .select(
         F.upper(F.trim(F.col("ISBN"))).alias("isbn"),
@@ -130,12 +134,59 @@ books = (
         "_source_file",
         "_ingested_at",
     )
-    # explorace: 0 duplicit na raw ISBN; po UPPER/TRIM pojistka - vyhrává
-    # první řádek (deterministicky podle pořadí ingestu)
+    # explorace: 0 duplicit na raw ISBN, 314 po UPPER/TRIM
     .dropDuplicates(["isbn"])
-    .withColumn("_transformed_at", F.current_timestamp())
+    .withColumn("source", F.lit("kaggle"))
 )
+
+if has_open_library:
+    books_recovered = (
+        spark.table(f"{bronze}.open_library")
+        .where(F.col("found") & (F.col("target") == "orphan") & F.col("title").isNotNull())
+        .select(
+            F.upper(F.trim(F.col("isbn"))).alias("isbn"),
+            F.col("title"),
+            # get() místo [0]: ANSI mód hází chybu při indexaci prázdného pole
+            normalize_author_udf(F.expr("get(authors, 0).name")).alias("author"),
+            clean_year_udf(F.regexp_extract("publish_date", r"(\d{4})", 1)).alias("year_of_publication"),
+            F.lit(None).cast("string").alias("publisher"),   # fetch je nestahuje
+            F.lit(None).cast("string").alias("image_url"),
+            "_source_file",
+            "_ingested_at",
+        )
+        .dropDuplicates(["isbn"])
+        # při konfliktu vyhrává Kaggle - dohledáváme jen skutečné sirotky
+        .join(books_kaggle.select("isbn"), "isbn", "left_anti")
+        .withColumn("source", F.lit("open_library"))
+    )
+    books_all = books_kaggle.unionByName(books_recovered)
+else:
+    print("bronze.open_library neexistuje - katalog jen z Kaggle.")
+    books_all = books_kaggle
+
+books = books_all.withColumn("_transformed_at", F.current_timestamp())
 overwrite(books, f"{silver}.books")
+
+# COMMAND ----------
+
+# --- book_enrichment (Open Library: žánry, author_key, počet stran) ---
+
+if has_open_library:
+    enrichment = (
+        spark.table(f"{bronze}.open_library")
+        .where(F.col("found"))
+        .select(
+            F.upper(F.trim(F.col("isbn"))).alias("isbn"),
+            F.col("target"),
+            F.expr("get(authors, 0).key").alias("author_key"),
+            F.col("subjects"),
+            F.col("number_of_pages").cast("int").alias("pages"),
+            "_ingested_at",
+        )
+        .dropDuplicates(["isbn"])
+        .withColumn("_transformed_at", F.current_timestamp())
+    )
+    overwrite(enrichment, f"{silver}.book_enrichment")
 
 # COMMAND ----------
 
