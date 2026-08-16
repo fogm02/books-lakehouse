@@ -9,9 +9,24 @@ import pytest
 from src.silver.lib.transforms import (
     clean_age,
     clean_year,
+    fix_mojibake,
     normalize_author,
     parse_location,
 )
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("Saint-ExupÃ©ry", "Saint-Exupéry"),        # reálný případ z Books.csv
+        ("FÃ¼r Elise", "Für Elise"),
+        ("plain ascii", "plain ascii"),              # beze změny
+        ("café", "café"),                            # korektní diakritika beze změny
+        (None, None),
+    ],
+)
+def test_fix_mojibake(raw, expected):
+    assert fix_mojibake(raw) == expected
 
 
 @pytest.mark.parametrize(
@@ -90,6 +105,7 @@ def test_parse_location(raw, expected):
         ("J.K. ROWLING", "J. K. Rowling"),
         ("J.K Rowling", "J. K. Rowling"),   # iniciála bez tečky
         ("O'Brien", "O'Brien"),             # apostrof nesmí dostat tečku
+        ("Antoine De Saint-ExupÃ©ry", "Antoine De Saint-Exupéry"),  # mojibake fix
         # vědomé limity - tyhle varianty zůstávají oddělené
         ("Rowling J K", "Rowling J. K."),   # přehozené pořadí neřešíme
         ("Joanne K. Rowling", "Joanne K. Rowling"),

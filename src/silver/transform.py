@@ -40,7 +40,7 @@ except NameError:
 
 from pyspark.sql import functions as F, types as T
 
-from lib.transforms import clean_age, clean_year, normalize_author, parse_location
+from lib.transforms import clean_age, clean_year, fix_mojibake, normalize_author, parse_location
 
 bronze = f"{catalog}.{schema_bronze}"
 silver = f"{catalog}.{schema_silver}"
@@ -52,6 +52,7 @@ silver = f"{catalog}.{schema_silver}"
 clean_year_udf = F.udf(clean_year, T.IntegerType())
 clean_age_udf = F.udf(clean_age, T.IntegerType())
 normalize_author_udf = F.udf(normalize_author, T.StringType())
+fix_mojibake_udf = F.udf(fix_mojibake, T.StringType())
 parse_location_udf = F.udf(
     parse_location,
     T.StructType([
@@ -126,10 +127,10 @@ books_kaggle = (
     books_raw.where(~shifted_cond)
     .select(
         F.upper(F.trim(F.col("ISBN"))).alias("isbn"),
-        F.col("`Book-Title`").alias("title"),
+        fix_mojibake_udf("`Book-Title`").alias("title"),
         normalize_author_udf("`Book-Author`").alias("author"),
         clean_year_udf("`Year-Of-Publication`").alias("year_of_publication"),
-        F.col("Publisher").alias("publisher"),
+        fix_mojibake_udf("Publisher").alias("publisher"),
         F.col("`Image-URL-L`").alias("image_url"),
         "_source_file",
         "_ingested_at",

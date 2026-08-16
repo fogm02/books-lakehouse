@@ -84,6 +84,29 @@ def parse_location(raw: str | None) -> tuple[str | None, str | None, str | None]
     return (city, parts[-2], parts[-1])
 
 
+def fix_mojibake(raw: str | None) -> str | None:
+    """Opraví text dvojitě zakódovaný ve zdroji ("Saint-ExupÃ©ry" -> "Saint-Exupéry").
+
+    Books.csv obsahuje UTF-8 bajty omylem překódované přes latin-1 už od
+    vydavatele datasetu (doloženo v raw bytech, viz journal). Oprava je
+    inverzní krok: encode latin-1 -> decode utf-8, opakovaně dokud text
+    "ozdravuje". Bezpečnost: korektní text (i s diakritikou) projde beze
+    změny - encode/decode na něm selže nebo vrátí identitu.
+    """
+    if raw is None:
+        return None
+    text = raw
+    for _ in range(2):  # zdroj má místy dvojité kódování
+        try:
+            repaired = text.encode("latin-1").decode("utf-8")
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            break
+        if repaired == text:
+            break
+        text = repaired
+    return text
+
+
 def normalize_author(raw: str | None) -> str | None:
     """Sjednocení pravopisných variant jména autora.
 
@@ -97,7 +120,7 @@ def normalize_author(raw: str | None) -> str | None:
     """
     if raw is None:
         return None
-    name = re.sub(r"\s*\.\s*", ". ", raw)
+    name = re.sub(r"\s*\.\s*", ". ", fix_mojibake(raw))
     # iniciála bez tečky uprostřed jména: "J. K Rowling" -> "J. K. Rowling"
     name = re.sub(r"\b([A-Za-z])\b(?![.'])", r"\1.", name)
     name = re.sub(r"\s+", " ", name).strip()
