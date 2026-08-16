@@ -123,9 +123,7 @@
             "name": "header",
             "multilineTextboxSpec": {
               "lines": [
-                "# Books Lakehouse — Book-Crossing dataset\n",
-                "\n",
-                "1,15M interakcí · 62 % implicitních · katalog obohacený o 36 925 knih z Open Library (zachráněno 62 % sirotčích ratingů). Žebříčky používají bayesovský vážený rating (m=25) — srovnej panel popularity s panelem kvality: nejčtenější kniha (Wild Animus) má podprůměrné známky."
+                "# Books Lakehouse — Book-Crossing dataset"
               ]
             }
           },
@@ -133,7 +131,7 @@
             "x": 0,
             "y": 0,
             "width": 12,
-            "height": 2
+            "height": 1
           }
         },
         {
@@ -171,7 +169,7 @@
           },
           "position": {
             "x": 0,
-            "y": 2,
+            "y": 1,
             "width": 3,
             "height": 3
           }
@@ -211,7 +209,7 @@
           },
           "position": {
             "x": 3,
-            "y": 2,
+            "y": 1,
             "width": 3,
             "height": 3
           }
@@ -240,18 +238,18 @@
               "encodings": {
                 "value": {
                   "fieldName": "ratings_explicit",
-                  "displayName": "Známky"
+                  "displayName": "Ratingy"
                 }
               },
               "frame": {
-                "title": "Explicitní známky (1–10)",
+                "title": "Explicitní ratingy (1–10)",
                 "showTitle": true
               }
             }
           },
           "position": {
             "x": 6,
-            "y": 2,
+            "y": 1,
             "width": 3,
             "height": 3
           }
@@ -291,7 +289,7 @@
           },
           "position": {
             "x": 9,
-            "y": 2,
+            "y": 1,
             "width": 3,
             "height": 3
           }
@@ -359,7 +357,7 @@
           },
           "position": {
             "x": 0,
-            "y": 5,
+            "y": 4,
             "width": 6,
             "height": 6
           }
@@ -417,7 +415,7 @@
                   },
                   {
                     "fieldName": "ratings_cnt",
-                    "displayName": "Známek"
+                    "displayName": "Ratingů"
                   },
                   {
                     "fieldName": "avg_rating",
@@ -433,7 +431,7 @@
           },
           "position": {
             "x": 6,
-            "y": 5,
+            "y": 4,
             "width": 6,
             "height": 6
           }
@@ -497,7 +495,7 @@
           },
           "position": {
             "x": 0,
-            "y": 11,
+            "y": 10,
             "width": 6,
             "height": 6
           }
@@ -558,7 +556,7 @@
           },
           "position": {
             "x": 6,
-            "y": 11,
+            "y": 10,
             "width": 6,
             "height": 6
           }
@@ -574,7 +572,7 @@
           },
           "position": {
             "x": 0,
-            "y": 17,
+            "y": 16,
             "width": 12,
             "height": 1
           }
@@ -637,7 +635,7 @@
           },
           "position": {
             "x": 0,
-            "y": 18,
+            "y": 17,
             "width": 6,
             "height": 2
           }
@@ -696,7 +694,7 @@
           },
           "position": {
             "x": 6,
-            "y": 18,
+            "y": 17,
             "width": 6,
             "height": 2
           }
@@ -764,7 +762,7 @@
           },
           "position": {
             "x": 0,
-            "y": 20,
+            "y": 19,
             "width": 6,
             "height": 6
           }
@@ -828,7 +826,7 @@
           },
           "position": {
             "x": 6,
-            "y": 20,
+            "y": 19,
             "width": 6,
             "height": 6
           }
