@@ -138,6 +138,22 @@ Doplňuje `architecture.md` (decision log) a `layers.md` (dokumentace vrstev).
   (user,isbn) párů = gold agregace korektní; 17 364 skupin vydání.
 - Plný report s P0/P1/P2 plánem: docs/review.md.
 
+## 16. 8. 2026 — Open Library enrichment v provozu (ČÍSLA)
+
+- Staženo 63 457 ISBN (61 457 sirotčích + top 2 000 katalogu) přes batch
+  Books API; s archive.org auth ~3 req/s. Resumable skript
+  (scripts/fetch_open_library.py), zdroj = dva JSONL soubory v landingu
+  (inkrementální dodávka druhého zdroje - Auto Loader je sebral sám).
+- **Katalog narostl o 36 925 dohledaných knih** (source='open_library';
+  Kaggle 270 989). Enrichment tabulka: 38 933 ISBN se žánry/author_key
+  (36 933 orphan + 2 000 catalog - top katalog měl 100% hit rate).
+- **Sirotčí ratingy: 118 752 → 44 589** (zachráněno 62 %; explicitních
+  známek se do žebříčků vrátilo ~30 tisíc, zbývá 19 718).
+- Zbytek nedohledatelný: 8 915 nevalidních ISBN + ISBN neznámá Open Library.
+- Debug poznámky: macOS Python bez CA certifikátů (fix: certifi);
+  ANSI mód na serverless -> get(authors, 0) místo authors[0].
+- Dashboard staví MF ručně v UI (učení) - 4 gold views + kpi dataset.
+
 ## Do prezentace nezapomenout
 
 - Čísla ze špíny dat (doplní se z explorace do layers.md).
