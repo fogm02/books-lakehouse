@@ -1,0 +1,11 @@
+# data se do gitu nedávají – stahují se skriptem
+data/
+
+# Databricks bundle state
+.databricks/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/

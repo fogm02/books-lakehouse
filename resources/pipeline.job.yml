@@ -1,0 +1,64 @@
+resources:
+  jobs:
+    books_pipeline:
+      name: "[${bundle.target}] Books Lakehouse Pipeline"
+
+      # Žádný cluster config = tasky běží na serverless (Free Edition
+      # nic jiného nenabízí; v práci by tu byl job_cluster / existing_cluster_id).
+
+      # Inkrementální demo: přepni trigger_pause_status na UNPAUSED,
+      # nahraj další dávku CSV do landingu a job se spustí sám.
+      trigger:
+        pause_status: ${var.trigger_pause_status}
+        file_arrival:
+          url: ${var.landing_base}/
+          min_time_between_triggers_seconds: 60
+
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema_bronze
+          default: ${var.schema_bronze}
+        - name: schema_silver
+          default: ${var.schema_silver}
+        - name: schema_gold
+          default: ${var.schema_gold}
+        - name: landing_base
+          default: ${var.landing_base}
+        - name: checkpoint_base
+          default: ${var.checkpoint_base}
+        - name: min_ratings
+          default: "25"
+
+      tasks:
+        - task_key: bronze_ingest
+          notebook_task:
+            notebook_path: ../src/bronze/ingest_raw.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema_bronze: "{{job.parameters.schema_bronze}}"
+              landing_base: "{{job.parameters.landing_base}}"
+              checkpoint_base: "{{job.parameters.checkpoint_base}}"
+
+        - task_key: silver_transform
+          depends_on:
+            - task_key: bronze_ingest
+          notebook_task:
+            notebook_path: ../src/silver/transform.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema_bronze: "{{job.parameters.schema_bronze}}"
+              schema_silver: "{{job.parameters.schema_silver}}"
+
+        - task_key: gold_views
+          depends_on:
+            - task_key: silver_transform
+          notebook_task:
+            notebook_path: ../src/gold/create_views.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema_silver: "{{job.parameters.schema_silver}}"
+              schema_gold: "{{job.parameters.schema_gold}}"
+              min_ratings: "{{job.parameters.min_ratings}}"
+
+      max_concurrent_runs: 1

@@ -1,0 +1,46 @@
+# Databricks Asset Bundle – po vzoru competitive_analysis, přizpůsobeno
+# Free Edition (serverless-only, jeden katalog místo catalog-per-layer).
+bundle:
+  name: books-lakehouse
+
+# DŮLEŽITÉ: profil "personal" = osobní Free Edition účet.
+# Pracovní profil (mf/DEFAULT) se tím nikdy nepoužije.
+workspace:
+  profile: personal
+
+include:
+  - resources/*.yml
+
+sync:
+  paths:
+    - ./src
+
+variables:
+  catalog:
+    description: "Unity Catalog katalog pro celý projekt"
+    default: books
+  schema_bronze:
+    description: "Schéma bronze vrstvy"
+    default: bronze
+  schema_silver:
+    description: "Schéma silver vrstvy"
+    default: silver
+  schema_gold:
+    description: "Schéma gold vrstvy"
+    default: gold
+  landing_base:
+    description: "Landing volume se zdrojovými CSV"
+    default: "/Volumes/books/landing/raw"
+  checkpoint_base:
+    description: "Volume pro Auto Loader checkpointy"
+    default: "/Volumes/books/bronze/checkpoints"
+  trigger_pause_status:
+    description: "File arrival trigger – UNPAUSED zapne inkrementální demo"
+    default: PAUSED
+
+targets:
+  dev:
+    default: true
+    mode: development
+    workspace:
+      host: https://dbc-4f392e50-7e58.cloud.databricks.com
