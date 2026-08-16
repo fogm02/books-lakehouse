@@ -48,7 +48,17 @@ for old in ["v_top_books", "v_most_popular_books", "v_books_by_year", "v_top_aut
 # COMMAND ----------
 
 spark.sql(f"""
-CREATE OR REPLACE VIEW {gold}.v_books
+CREATE OR REPLACE VIEW {gold}.v_books (
+  title               COMMENT 'Název knihy (vydání sloučena přes title + author)',
+  author              COMMENT 'Normalizované jméno autora (textová identita, ne ID)',
+  year_of_publication COMMENT 'Rok prvního vydání (MIN přes vydání, rozsah 1450–2004); NULL = ve zdroji chybí/nevalidní',
+  editions            COMMENT 'Počet vydání (ISBN) sloučených do této knihy',
+  readers_total       COMMENT 'Počet čtenářů = všechny interakce vč. implicitních (rating 0). Používej pro "nejčtenější/most popular"',
+  ratings_cnt         COMMENT 'Počet explicitních známek 1–10',
+  avg_rating          COMMENT 'Prostý průměr explicitních známek; NULL = kniha bez známek',
+  weighted_rating     COMMENT 'Bayesovský vážený rating (IMDb vzorec, m={m}). Používej pro "nejlepší/best rated"',
+  image_url           COMMENT 'URL obálky knihy'
+)
 COMMENT 'Grain: kniha (title × author, vydání sloučena). readers_total = všechny interakce vč. implicitních (popularita); ratings_cnt/avg_rating/weighted_rating = jen explicitní známky (kvalita, bayesovský průměr m={m}). year_of_publication = rok prvního vydání.'
 AS
 WITH joined AS (
@@ -84,7 +94,12 @@ print(f"✓ {gold}.v_books")
 # COMMAND ----------
 
 spark.sql(f"""
-CREATE OR REPLACE VIEW {gold}.v_authors
+CREATE OR REPLACE VIEW {gold}.v_authors (
+  author          COMMENT 'Normalizované jméno autora (textová identita, ne ID)',
+  ratings_cnt     COMMENT 'Počet explicitních známek přes všechny knihy autora',
+  avg_rating      COMMENT 'Prostý průměr explicitních známek autora',
+  weighted_rating COMMENT 'Bayesovský vážený rating autora (m={m}). Používej pro "nejlepší autoři"; doporuč práh ratings_cnt >= 25'
+)
 COMMENT 'Grain: autor. Bayesovský vážený rating (m={m}) přes explicitní známky všech knih autora. Autor = normalizovaný string - identity resolution přes OL author_key je future path.'
 AS
 WITH explicit AS (
@@ -112,8 +127,15 @@ print(f"✓ {gold}.v_authors")
 # COMMAND ----------
 
 spark.sql(f"""
-CREATE OR REPLACE VIEW {gold}.v_books_by_genre
-COMMENT 'Grain: kniha × žánr (subjects z Open Library, jen obohacená podmnožina). Subjects jsou knihovnické hlavičky s čárkami uvnitř - rozpadají se na atomické tokeny, balast "General" se zahazuje.'
+CREATE OR REPLACE VIEW {gold}.v_books_by_genre (
+  genre           COMMENT 'Žánr/téma z Open Library subjects (atomický token; kniha má typicky víc žánrů)',
+  title           COMMENT 'Název knihy',
+  author          COMMENT 'Normalizované jméno autora',
+  ratings_cnt     COMMENT 'Počet explicitních známek knihy',
+  avg_rating      COMMENT 'Prostý průměr explicitních známek',
+  weighted_rating COMMENT 'Bayesovský vážený rating (m={m}). Používej pro "nejlepší v žánru"'
+)
+COMMENT 'Grain: kniha × žánr (subjects z Open Library, jen obohacená podmnožina katalogu). Subjects jsou knihovnické hlavičky s čárkami uvnitř - rozpadají se na atomické tokeny, balast "General" se zahazuje.'
 AS
 WITH explicit AS (
   SELECT r.rating, b.title, b.author, b.isbn
@@ -144,7 +166,13 @@ print(f"✓ {gold}.v_books_by_genre")
 # COMMAND ----------
 
 spark.sql(f"""
-CREATE OR REPLACE VIEW {gold}.v_authors_by_year_publisher
+CREATE OR REPLACE VIEW {gold}.v_authors_by_year_publisher (
+  author              COMMENT 'Normalizované jméno autora',
+  year_of_publication COMMENT 'Rok vydání knihy (edice); NULL = nevalidní/chybí',
+  publisher           COMMENT 'Vydavatel (nečištěný string ze zdroje)',
+  ratings_cnt         COMMENT 'Počet explicitních známek v kombinaci autor × rok × vydavatel',
+  avg_rating          COMMENT 'Prostý průměr explicitních známek; u malých ratings_cnt nespolehlivý'
+)
 COMMENT 'Grain: autor × rok vydání × vydavatel. Průměry explicitních známek pro filtrovatelnou analytiku.'
 AS
 SELECT
@@ -163,7 +191,12 @@ print(f"✓ {gold}.v_authors_by_year_publisher")
 # COMMAND ----------
 
 spark.sql(f"""
-CREATE OR REPLACE VIEW {gold}.v_avg_rating_by_year
+CREATE OR REPLACE VIEW {gold}.v_avg_rating_by_year (
+  year_of_publication COMMENT 'Rok vydání knihy (1450–2004; crawl datasetu skončil 09/2004)',
+  books_cnt           COMMENT 'Počet různých vydání (ISBN) s aspoň jednou známkou v daném roce',
+  ratings_cnt         COMMENT 'Počet explicitních známek na knihy daného roku',
+  avg_rating          COMMENT 'Průměrná explicitní známka (vážená přes hodnocení). Starší roky = survivorship bias'
+)
 COMMENT 'Grain: rok vydání. Průměrná explicitní známka vážená přes hodnocení. Pozor při čtení: starší roky = survivorship bias, crawl končí 09/2004.'
 AS
 SELECT
@@ -181,7 +214,16 @@ print(f"✓ {gold}.v_avg_rating_by_year")
 # COMMAND ----------
 
 spark.sql(f"""
-CREATE OR REPLACE VIEW {gold}.v_kpi_summary
+CREATE OR REPLACE VIEW {gold}.v_kpi_summary (
+  books_in_catalog    COMMENT 'Velikost katalogu (Kaggle + dohledané z Open Library)',
+  books_recovered     COMMENT 'Knihy dohledané z Open Library (source = open_library)',
+  interactions_total  COMMENT 'Všechny interakce vč. implicitních (rating 0)',
+  ratings_explicit    COMMENT 'Explicitní známky 1–10',
+  implicit_pct        COMMENT 'Podíl implicitních interakcí v procentech (0–100)',
+  avg_rating_explicit COMMENT 'Globální průměr explicitních známek = C z bayesovského vzorce',
+  ratings_recovered   COMMENT 'Ratingy zachráněné enrichmentem (napojené na dohledané knihy)',
+  ratings_orphaned    COMMENT 'Sirotčí ratingy - ISBN stále bez knihy v katalogu'
+)
 COMMENT 'Grain: celý dataset (1 řádek). KPI: katalog, interakce, podíl implicitních, globální průměr známek (C ze vzorce), efekt Open Library enrichmentu.'
 AS
 WITH r AS (
