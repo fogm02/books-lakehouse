@@ -1,17 +1,12 @@
 #!/usr/bin/env python3
 """Stáhne metadata knih z Open Library (batch Books API) do JSONL.
 
-Cíle (viz docs/review.md, docs/journal.md):
-1. sirotčí ISBN z Ratings.csv (validní formát, >=1 interakce) - dohledání
-   knih chybějících v katalogu
-2. top N katalogových ISBN podle počtu interakcí - žánry/author_key
+Dva cíle: dohledat knihy pro sirotčí ISBN z Ratings.csv a obohatit top N
+katalogových knih o žánry a author_key. Výstup: jeden JSON řádek na ISBN
+(title, authors, subjects, publish_date, number_of_pages, target, found).
 
-Výstup: data/enrichment/open_library.jsonl - jeden řádek na ISBN:
-  {"isbn": ..., "found": true/false, "title": ..., "authors": [{"name","key"}],
-   "subjects": [...], "number_of_pages": ..., "publish_date": ..., "target": ...}
-
-Rerun je resumable - už stažená ISBN se přeskočí. Rate limit ~1 req/s,
-batch 50 ISBN/request (User-Agent s kontaktem dle OL etikety).
+Běh je resumable - už stažená ISBN se při restartu přeskočí. Batch 50
+ISBN/request; s auth klíči ~3 req/s, bez nich ~1 req/s.
 """
 import csv
 import json

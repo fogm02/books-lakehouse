@@ -1,9 +1,8 @@
 # Databricks notebook source
-"""Setup — vytvoření schémat a volumes pro books pipeline.
-Spustit JEDNOU ručně před prvním spuštěním pipeline.
+"""Založení schémat a volumes. Spouští se jednou, před prvním během pipeline.
 
-Parameters (from dbutils.widgets):
-    catalog: Katalog projektu (default: books)
+Parametry (dbutils.widgets):
+    catalog: katalog projektu (default: books)
 """
 
 # COMMAND ----------

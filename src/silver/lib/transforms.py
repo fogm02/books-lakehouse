@@ -1,8 +1,7 @@
-"""Čisté transformační funkce - žádný Spark, žádný Databricks.
+"""Čistící pravidla jako čisté funkce - bez Sparku, bez Databricks.
 
-Testovatelné pytestem lokálně i v CI (tests/test_transforms.py).
-Pravidla vycházejí z explorace bronze vrstvy, viz docs/journal.md
-(15. 8. 2026 - rozhodnutí čistících pravidel).
+Testují se pytestem lokálně (tests/test_transforms.py); pipeline je volá
+přes UDF. Pravidla vycházejí z profilování dat, viz docs/journal.md.
 """
 
 from __future__ import annotations

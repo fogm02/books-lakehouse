@@ -1,20 +1,13 @@
 # Databricks notebook source
-"""Bronze ingestion — Auto Loader nad landing volume s CSV z Kaggle.
+"""Bronze — Auto Loader nad landing volume.
 
-Tři streamy: Books.csv → books, Ratings.csv → ratings, Users.csv → users.
-
-Bronze = raw 1:1 reprezentace zdroje: všechny sloupce string, žádné čištění,
+Raw 1:1 kopie zdrojů: všechny sloupce string, žádné čištění. Přidávají se
 jen technická metadata (_source_file, _ingested_at) a _rescued_data pro
-řádky, které nesedí do schématu. Typování a sémantika patří do silver.
+řádky mimo schéma. Typování a sémantika patří do silveru — když selže tam,
+bronze zůstává k dispozici na přehrání.
 
-Na rozdíl od práce (parquet + binaryFile/foreachBatch kvůli exploding
-schema) tady stačí přímý cloudFiles CSV stream — schéma je stabilní.
-
-Parameters (from notebook_task.base_parameters):
-    catalog:         Katalog projektu (např. "books")
-    schema_bronze:   Cílové bronze schéma
-    landing_base:    Cesta k landing volume se CSV
-    checkpoint_base: Cesta pro Auto Loader checkpointy
+Parametry (z notebook_task.base_parameters):
+    catalog, schema_bronze, landing_base, checkpoint_base
 """
 
 # COMMAND ----------
@@ -33,8 +26,8 @@ checkpoint_base = dbutils.widgets.get("checkpoint_base")
 
 from pyspark.sql import functions as F
 
-# glob pattern místo přesného jména -> inkrementální demo: další dávku
-# nahraješ jako např. Ratings_batch2.csv a Auto Loader ji chytne
+# glob místo přesného jména: další dávka (např. Ratings_2.csv) se zpracuje
+# bez změny kódu
 SOURCES = {
     "books":   "Books*.csv",
     "ratings": "Ratings*.csv",
@@ -74,10 +67,9 @@ for _name, _pattern in SOURCES.items():
 
 # COMMAND ----------
 
-# --- druhý zdroj: Open Library JSONL (dohledané sirotčí knihy + obohacení) ---
-# Na rozdíl od CSV tady typy inferujeme: data jsou strojově generovaná naším
-# skriptem (scripts/fetch_open_library.py), schéma je stabilní a vnořené
-# (authors: array<struct>, subjects: array<string>).
+# --- druhý zdroj: Open Library JSONL ---
+# Tady typy inferujeme: data generuje scripts/fetch_open_library.py, schéma
+# je stabilní a vnořené (authors: array<struct>, subjects: array<string>).
 
 OL_PATH = f"{landing_base}/open_library/"
 

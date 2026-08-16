@@ -1,20 +1,12 @@
 # Databricks notebook source
-"""Silver — typovaná, vyčištěná a validovaná data. Full overwrite z bronze.
+"""Silver — typovaná, vyčištěná a validovaná data.
 
-Full overwrite (vzor z praxe): silver vždy odráží aktuální stav bronze,
-změna business logiky = deploy kódu a rebuild, bronze zůstává untouched.
-Na 1,1M ratingů běží v sekundách, trade-off zanedbatelný. Škálovací cesta
-(future improvement, viz decision log): ratings číst z bronze streamingem
-s checkpointem a appendovat, dimenze MERGE.
+Full overwrite z bronze při každém běhu: na 1,1M řádků otázka sekund,
+změna pravidla = nový běh, bronze se nikdy nemění. Pravidlo pro špínu:
+vadný celý řádek jde do karantény s důvodem, vadný atribut se NULLuje
+a řádek zůstává. Zdůvodnění jednotlivých pravidel: docs/journal.md.
 
-Pravidla čištění = rozhodnutí z explorace (docs/journal.md 15. 8. 2026):
-1. rating 0 = implicitní feedback -> flag is_explicit, řádky zůstávají
-2. sirotčí ratingy (ISBN mimo books) zůstávají - vyřadí je až join v goldu
-3. posunuté řádky books (nečíselný rok) -> karanténa s reason
-4. věk mimo 5-100 -> NULL atributu, řádek zůstává
-5. location parsovaná pozičně zprava, placeholdery/escape smetí -> NULL
-
-Parameters (from notebook_task.base_parameters):
+Parametry (z notebook_task.base_parameters):
     catalog, schema_bronze, schema_silver
 """
 
@@ -219,7 +211,7 @@ overwrite(users, f"{silver}.users")
 
 # COMMAND ----------
 
-# --- DQ shrnutí běhu (čísla do prezentace) ---
+# --- shrnutí běhu ---
 
 for tbl in ["ratings", "books", "users", "quarantine_ratings", "quarantine_books"]:
     print(f"{silver}.{tbl}: {spark.table(f'{silver}.{tbl}').count():,}")

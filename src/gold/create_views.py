@@ -1,8 +1,8 @@
 # Databricks notebook source
 """Gold — prezentační vrstva, čisté DDL (idempotentní).
 
-Design: JEDNO VIEW NA GRAIN (zrnitost), ne na use-case. Prezentační řezy
-(top-10, řazení, limity) dělají až konzumenti (dashboard datasety, Genie).
+Jedno view na grain (zrnitost), ne na use-case. Prezentační řezy
+(řazení, limity, parametry) dělají až konzumenti — dashboard a Genie.
 
 | view                        | grain                    |
 |-----------------------------|--------------------------|

@@ -1,10 +1,6 @@
-# Databricks Asset Bundle – po vzoru competitive_analysis, přizpůsobeno
-# Free Edition (serverless-only, jeden katalog místo catalog-per-layer).
 bundle:
   name: books-lakehouse
 
-# DŮLEŽITÉ: profil "personal" = osobní Free Edition účet.
-# Pracovní profil (mf/DEFAULT) se tím nikdy nepoužije.
 workspace:
   profile: personal
 

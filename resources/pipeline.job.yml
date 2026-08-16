@@ -3,11 +3,8 @@ resources:
     books_pipeline:
       name: "[${bundle.target}] Books Lakehouse Pipeline"
 
-      # Žádný cluster config = tasky běží na serverless (Free Edition
-      # nic jiného nenabízí; v práci by tu byl job_cluster / existing_cluster_id).
-
-      # Inkrementální demo: přepni trigger_pause_status na UNPAUSED,
-      # nahraj další dávku CSV do landingu a job se spustí sám.
+      # Bez cluster konfigurace běží tasky na serverless.
+      # Trigger: po přepnutí na UNPAUSED spouští job příchod souboru do landingu.
       trigger:
         pause_status: ${var.trigger_pause_status}
         file_arrival:
