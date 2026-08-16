@@ -154,6 +154,23 @@ Doplňuje `architecture.md` (decision log) a `layers.md` (dokumentace vrstev).
   ANSI mód na serverless -> get(authors, 0) místo authors[0].
 - Dashboard staví MF ručně v UI (učení) - 4 gold views + kpi dataset.
 
+## 16. 8. 2026 — dashboard jako kód, Genie, konsolidace goldu
+
+- Dashboard postaven jako kód (lvdash.json) a nasazován bundlem; parametry
+  (:year_range, :genre) se aplikují před LIMIT — filtry fungují korektně
+  (widget-level limit nejde: grafy ořezávají na 10k řádků).
+- Žánry: OL subjects jsou knihovnické hlavičky s čárkami uvnitř
+  ("Fiction, Fantasy, General" = jeden string) → rozpad na atomické tokeny.
+- Horní mez roku vydání 2026 → 2004 (konec crawlu; ověřeno: jen 72 knih
+  a 205 ratingů nad 2004, vesměs chyby). Dolní mez 1450 ověřena: pod 1900
+  jen 4 knihy, z toho 2 s rokem v PERSKÉM kalendáři (1376 SH ≈ 1997).
+  Klíčový koncept: sloupec = rok VYDÁNÍ (edice s ISBN), ne vzniku díla.
+- **Konsolidace goldu 8 → 6 views: jedno view na GRAIN, ne na use-case**
+  (v_top_books + v_most_popular_books + v_books_by_year → v_books;
+  v_top_authors → v_authors). Autorský grain nejde odvodit z knižního
+  (bayes potřebuje v a R na úrovni autora). Prezentační řezy dělají
+  konzumenti. Genie space (zakládá MF v UI) dostane 6 gold views.
+
 ## Do prezentace nezapomenout
 
 - Čísla ze špíny dat (doplní se z explorace do layers.md).
