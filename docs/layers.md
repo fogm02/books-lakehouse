@@ -47,8 +47,9 @@ stejný soubor se podruhé nezpracuje.
 
 - `_rescued_data` = 0 všude — NEznamená čistá data: posunuté řádky
   Books.csv jsou strukturně validní CSV (najde je až profilování).
-- Python csv parser vs. Spark: stejný soubor, jiný počet posunutých
-  řádků — CSV s nekonzistentním escapováním není formát, ale vyjednávání.
+- Python csv parser a Spark čtou tentýž soubor různě (jiný počet
+  posunutých řádků) — escapování uvozovek v Books.csv je nekonzistentní
+  a každý parser si s ním poradí po svém.
 
 ---
 

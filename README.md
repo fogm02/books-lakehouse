@@ -1,14 +1,16 @@
 # books-lakehouse
 
-Medallion pipeline nad [Book-Crossing datasetem](https://www.kaggle.com/datasets/arashnic/book-recommendation-dataset)
-na Databricks Free Edition — obohacená o druhý zdroj (Open Library),
-zakončená AI/BI dashboardem a Genie agentem.
+Řešení úkolu: bronze–silver–gold pipeline nad [Book-Crossing datasetem](https://www.kaggle.com/datasets/arashnic/book-recommendation-dataset)
+na Databricks Free Edition. Nad rámec zadání jsem přidal druhý datový
+zdroj (Open Library), AI/BI dashboard a Genie agenta — hlavně proto, že
+10 % hodnocení v datasetu mířilo na knihy, které v katalogu vůbec nebyly,
+a to se ukázalo jako opravitelné.
 
-**Výsledky v číslech:** 1,15 mil. hodnocení (62,3 % implicitních),
-katalog 307 914 knih — z toho 36 925 dohledaných z Open Library, čímž se
-zachránilo 62 % „sirotčích" hodnocení. Žebříčky stojí na bayesovském
-váženém ratingu (m = 25, ukotveno v rozdělení dat). 48 unit testů,
-všechno nasazované Asset Bundlem.
+Pár čísel na úvod: 1 149 780 hodnocení, z toho 62,3 % implicitních.
+Katalog má po obohacení 307 914 knih; 36 925 z nich je dohledaných přes
+Open Library, čímž se zachránilo 62 % zmíněných „sirotčích" hodnocení.
+Na transformační pravidla je 48 unit testů. Celé se to nasazuje jedním
+příkazem přes Asset Bundle.
 
 ## Architektura
 
@@ -20,14 +22,17 @@ Open Library ─────┘   volume    Auto Loader  ratings + karanténa   
                                                               dashboard + Genie
 ```
 
-Bronze drží fakta tak, jak přišla. Silver dělá rozhodnutí — typy,
-pravidla, karanténa, spojení zdrojů. Gold dělá interpretace — slučování
-vydání, vážené žebříčky, jedno view na zrnitost.
+Bronze je surová append-only kopie obou zdrojů, všechno jako string.
+Čištění, validace a spojení zdrojů se děje v silveru — co je vadné celé,
+končí v karanténě s uvedeným důvodem; vadné atributy se nulují a řádek
+zůstává. Gold má šest views, jedno na zrnitost: tam žijí agregace,
+slučování vydání a vážený rating.
 
-Kde číst dál: [architecture.md](docs/architecture.md) (diagram + decision
-log), [layers.md](docs/layers.md) (vrstvy do detailu),
-[journal.md](docs/journal.md) (celá cesta den po dni),
-[review.md](docs/review.md) (revize řešení v půlce projektu).
+Kde číst dál: [architecture.md](docs/architecture.md) obsahuje decision
+log (17 rozhodnutí, každé s alternativou), [layers.md](docs/layers.md)
+popisuje vrstvy do detailu, [journal.md](docs/journal.md) je deník celého
+postupu a [review.md](docs/review.md) revize, kterou jsem si udělal
+v půlce projektu.
 
 ## Struktura repa
 
@@ -64,15 +69,20 @@ databricks bundle run books_pipeline
 
 Testy: `pip install -r requirements-dev.txt && pytest`
 
-## Klíčová rozhodnutí ve zkratce
+## Nejdůležitější rozhodnutí
 
-- **Nula není známka.** 62 % hodnocení jsou implicitní interakce — drží
-  se s příznakem, kvalita je filtruje, popularita je potřebuje.
-- **Mazat co nejméně.** Vadný řádek → karanténa s důvodem; vadný atribut
-  → NULL. Sirotčí hodnocení zůstala — a druhý zdroj je pak zachránil.
-- **Malé vzorky lžou.** Medián 1 hodnocení na knihu → bayesovský vážený
-  rating (vzorec IMDb), m = 25 ≈ 99. percentil rozdělení.
-- **Druhý zdroj přitekl stejnou cestou jako první.** JSONL do landing
-  zóny, Auto Loader, silver — architektura se nezměnila.
+Asi nejzásadnější bylo nechat v datech hodnocení s nulou, kterých je
+62 %. Nula podle dokumentace datasetu není známka, ale záznam typu
+„uživatel měl knihu v ruce" — pro žebříčky kvality se filtruje, pro
+popularitu je to naopak hlavní signál. Ze stejného důvodu jsem nemazal
+ani hodnocení knih, které katalog neznal: samotné hodnocení vadné nebylo,
+chyběl k němu jen katalogový záznam. Právě tahle množina se později stala
+seznamem „co dohledat" pro druhý zdroj.
 
-Kompletní decision log s alternativami: [docs/architecture.md](docs/architecture.md)
+U žebříčků bylo nutné vyřešit, že medián počtu známek na knihu je 1 —
+prostý průměr by vyhrávaly knihy s jedinou desítkou. Používám proto
+bayesovský vážený rating (vzorec známý z IMDb Top 250) s m = 25, což
+odpovídá 99. percentilu rozdělení; citlivost jsem ověřil pro m = 10/25/50.
+
+Kompletní decision log včetně zavržených alternativ:
+[docs/architecture.md](docs/architecture.md)
