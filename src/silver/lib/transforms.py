@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import re
 
-# Knihtisk ~1450; horní mez = rok zpracování. Books.csv obsahuje 4 618x
-# rok 0 a 11x roky v budoucnosti (max 2050) - obojí -> None.
-YEAR_RANGE = (1450, 2026)
+# Knihtisk ~1450; horní mez = konec crawlu (září 2004) - dataset po tomto
+# datu neexistuje, takže pozdější rok vydání je z definice vadný záznam.
+# Ověřeno v raw: jen 72 knih s rokem > 2004 (205 ratingů, 0,018 %).
+YEAR_RANGE = (1450, 2004)
 
 # Mimo tento rozsah je věk považován za nevyplněný (v datech max 244).
 # NULLuje se atribut, řádek uživatele zůstává - je dál použitelný pro joiny.

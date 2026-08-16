@@ -172,7 +172,7 @@ print(f"✓ {gold}.v_books_by_year")
 
 spark.sql(f"""
 CREATE OR REPLACE VIEW {gold}.v_books_by_genre
-COMMENT 'Knihy rozpadlé po žánrech (subjects z Open Library, jen obohacené knihy). Žánry jsou free-text - kniha má typicky víc žánrů.'
+COMMENT 'Knihy rozpadlé po žánrech (subjects z Open Library, jen obohacené knihy). Subjects jsou knihovnické hlavičky s čárkami uvnitř ("Fiction, Fantasy, General") - rozpadají se na atomické tokeny, balast "General" se zahazuje.'
 AS
 WITH explicit AS (
   SELECT r.rating, b.title, b.author, b.isbn
@@ -182,12 +182,15 @@ WITH explicit AS (
 ),
 g AS (SELECT AVG(rating) AS c FROM explicit),
 per AS (
-  SELECT INITCAP(TRIM(genre)) AS genre, e.title, e.author,
+  SELECT INITCAP(TRIM(genre_token)) AS genre, e.title, e.author,
          COUNT(*) AS ratings_cnt, AVG(e.rating) AS avg_rating
   FROM explicit e
   JOIN {silver}.book_enrichment en ON e.isbn = en.isbn
-  LATERAL VIEW EXPLODE(en.subjects) s AS genre
-  GROUP BY INITCAP(TRIM(genre)), e.title, e.author
+  LATERAL VIEW EXPLODE(en.subjects) s AS subject_raw
+  LATERAL VIEW EXPLODE(SPLIT(subject_raw, ',')) t AS genre_token
+  WHERE TRIM(genre_token) != ''
+    AND LOWER(TRIM(genre_token)) NOT IN ('general', 'etc', 'etc.')
+  GROUP BY INITCAP(TRIM(genre_token)), e.title, e.author
 )
 SELECT genre, title, author, ratings_cnt,
   ROUND(avg_rating, 2) AS avg_rating,

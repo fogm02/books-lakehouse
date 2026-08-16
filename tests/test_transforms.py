@@ -37,7 +37,8 @@ def test_fix_mojibake(raw, expected):
         (" 1987 ", 1987),
         ("0", None),                  # 4 618 řádků v Books.csv
         ("2050", None),               # budoucnost (11 řádků)
-        ("2026", 2026),               # horní mez včetně
+        ("2004", 2004),               # horní mez = konec crawlu, včetně
+        ("2005", None),               # po crawlu - vadné metadatum
         ("1449", None),               # před knihtiskem
         ("DK Publishing Inc", None),  # posunutý sloupec - autor v roce
         (None, None),
