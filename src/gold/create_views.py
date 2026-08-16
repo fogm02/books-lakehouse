@@ -121,4 +121,24 @@ print(f"✓ {gold}.v_authors_by_year_publisher")
 
 # COMMAND ----------
 
+spark.sql(f"""
+CREATE OR REPLACE VIEW {gold}.v_most_popular_books
+COMMENT 'Knihy podle počtu čtenářů - všechny interakce vč. implicitních (rating 0 = zalogováno bez známky). Popularita není kvalita: srovnej s v_top_books (Wild Animus story).'
+AS
+SELECT
+  b.title,
+  b.author,
+  COUNT(*)                                                   AS readers_total,
+  SUM(CASE WHEN r.is_explicit THEN 1 ELSE 0 END)             AS readers_explicit,
+  ROUND(AVG(CASE WHEN r.is_explicit THEN r.rating END), 2)   AS avg_rating,
+  COUNT(DISTINCT r.isbn)                                     AS editions,
+  MAX(b.image_url)                                           AS image_url
+FROM {silver}.ratings r
+JOIN {silver}.books b ON r.isbn = b.isbn
+GROUP BY b.title, b.author
+""")
+print(f"✓ {gold}.v_most_popular_books")
+
+# COMMAND ----------
+
 print("Gold views vytvořeny.")
