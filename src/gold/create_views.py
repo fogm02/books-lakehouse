@@ -1,20 +1,26 @@
 # Databricks notebook source
-"""Gold — prezentační vrstva pro dashboard. Čisté DDL (idempotentní).
+"""Gold — prezentační vrstva, čisté DDL (idempotentní).
 
-Views (zdroj: silver, inner join ratings×books vyřadí sirotčí ISBN):
-- v_top_books:                 knihy dle VÁŽENÉHO ratingu, vydání sloučená
-                               přes (title, author)
-- v_top_authors:               autoři dle váženého ratingu
-- v_authors_by_year_publisher: průměry per autor × rok vydání × vydavatel
+Design: JEDNO VIEW NA GRAIN (zrnitost), ne na use-case. Prezentační řezy
+(top-10, řazení, limity) dělají až konzumenti (dashboard datasety, Genie).
 
-Vážený rating = bayesovský průměr (IMDb vzorec):
-    weighted = (v/(v+m))*R + (m/(v+m))*C
-m (min_ratings, default 25): ukotveno v datech — medián ratingů na knihu
-je 1, p99 = 22; citlivostní analýza m=10/25/50 ukázala stabilní špičku,
-posuny jen na pozicích 5-10 (nika vs. mainstream). Viz docs/journal.md.
+| view                        | grain                    |
+|-----------------------------|--------------------------|
+| v_books                     | kniha (title × author)   |
+| v_authors                   | autor                    |
+| v_books_by_genre            | kniha × žánr             |
+| v_authors_by_year_publisher | autor × rok × vydavatel  |
+| v_avg_rating_by_year        | rok vydání               |
+| v_kpi_summary               | celek (1 řádek)          |
 
-Limit dat: ratingy nemají timestamp -> "top za období" jde interpretovat
-jen přes rok vydání (v_authors_by_year_publisher), ne přes čas hodnocení.
+Vážený rating = bayesovský průměr (IMDb): (v/(v+m))·R + (m/(v+m))·C.
+m (min_ratings, default 25) ukotveno v datech: medián ratingů/knihu = 1,
+p99 = 22; citlivost m=10/25/50 -> stabilní špička. C = globální průměr
+explicitních známek (~7,6).
+
+Limit dat: ratingy nemají timestamp -> "období" = rok VYDÁNÍ (crawl končí
+09/2004). Rating 0 = implicitní feedback -> měří popularitu (readers_total),
+kvalitu měří jen explicitní známky (ratings_cnt, avg_rating, weighted_rating).
 
 Parameters (from notebook_task.base_parameters):
     catalog, schema_silver, schema_gold, min_ratings
@@ -35,48 +41,51 @@ m             = int(dbutils.widgets.get("min_ratings"))
 silver = f"{catalog}.{schema_silver}"
 gold   = f"{catalog}.{schema_gold}"
 
+# úklid po konsolidaci na grain-based design (8 -> 6 views)
+for old in ["v_top_books", "v_most_popular_books", "v_books_by_year", "v_top_authors"]:
+    spark.sql(f"DROP VIEW IF EXISTS {gold}.{old}")
+
 # COMMAND ----------
 
 spark.sql(f"""
-CREATE OR REPLACE VIEW {gold}.v_top_books
-COMMENT 'Knihy podle bayesovského váženého ratingu (m={m}). Vydání sloučená přes (title, author) — sloupec editions ukazuje kolik ISBN se spojilo.'
+CREATE OR REPLACE VIEW {gold}.v_books
+COMMENT 'Grain: kniha (title × author, vydání sloučena). readers_total = všechny interakce vč. implicitních (popularita); ratings_cnt/avg_rating/weighted_rating = jen explicitní známky (kvalita, bayesovský průměr m={m}). year_of_publication = rok prvního vydání.'
 AS
-WITH explicit AS (
-  SELECT r.rating, b.title, b.author, b.isbn, b.image_url
+WITH joined AS (
+  SELECT r.rating, r.is_explicit, b.title, b.author, b.isbn,
+         b.year_of_publication, b.image_url
   FROM {silver}.ratings r
   JOIN {silver}.books b ON r.isbn = b.isbn
-  WHERE r.is_explicit
 ),
-g AS (SELECT AVG(rating) AS c FROM explicit),
+g AS (SELECT AVG(rating) AS c FROM joined WHERE is_explicit),
 per_book AS (
   SELECT
     title,
     author,
-    COUNT(*)              AS ratings_cnt,
-    AVG(rating)           AS avg_rating,
-    COUNT(DISTINCT isbn)  AS editions,
-    MAX(image_url)        AS image_url
-  FROM explicit
+    MIN(year_of_publication)                            AS year_of_publication,
+    COUNT(*)                                            AS readers_total,
+    SUM(CASE WHEN is_explicit THEN 1 ELSE 0 END)        AS ratings_cnt,
+    AVG(CASE WHEN is_explicit THEN rating END)          AS avg_rating,
+    COUNT(DISTINCT isbn)                                AS editions,
+    MAX(image_url)                                      AS image_url
+  FROM joined
   GROUP BY title, author
 )
 SELECT
-  title,
-  author,
-  editions,
-  ratings_cnt,
+  title, author, year_of_publication, editions, readers_total, ratings_cnt,
   ROUND(avg_rating, 2) AS avg_rating,
   ROUND((ratings_cnt / (ratings_cnt + {m})) * avg_rating
       + ({m} / (ratings_cnt + {m})) * g.c, 3) AS weighted_rating,
   image_url
 FROM per_book CROSS JOIN g
 """)
-print(f"✓ {gold}.v_top_books")
+print(f"✓ {gold}.v_books")
 
 # COMMAND ----------
 
 spark.sql(f"""
-CREATE OR REPLACE VIEW {gold}.v_top_authors
-COMMENT 'Autoři podle bayesovského váženého ratingu (m={m}) přes explicitní hodnocení jejich knih.'
+CREATE OR REPLACE VIEW {gold}.v_authors
+COMMENT 'Grain: autor. Bayesovský vážený rating (m={m}) přes explicitní známky všech knih autora. Autor = normalizovaný string - identity resolution přes OL author_key je future path.'
 AS
 WITH explicit AS (
   SELECT r.rating, b.author
@@ -98,81 +107,13 @@ SELECT
       + ({m} / (ratings_cnt + {m})) * g.c, 3) AS weighted_rating
 FROM per_author CROSS JOIN g
 """)
-print(f"✓ {gold}.v_top_authors")
-
-# COMMAND ----------
-
-spark.sql(f"""
-CREATE OR REPLACE VIEW {gold}.v_authors_by_year_publisher
-COMMENT 'Průměrný rating per autor × rok vydání × vydavatel. Období = rok VYDÁNÍ (ratingy nemají timestamp — limit zdroje).'
-AS
-SELECT
-  b.author,
-  b.year_of_publication,
-  b.publisher,
-  COUNT(*)             AS ratings_cnt,
-  ROUND(AVG(r.rating), 2) AS avg_rating
-FROM {silver}.ratings r
-JOIN {silver}.books b ON r.isbn = b.isbn
-WHERE r.is_explicit AND b.author IS NOT NULL
-GROUP BY b.author, b.year_of_publication, b.publisher
-""")
-print(f"✓ {gold}.v_authors_by_year_publisher")
-
-# COMMAND ----------
-
-spark.sql(f"""
-CREATE OR REPLACE VIEW {gold}.v_most_popular_books
-COMMENT 'Knihy podle počtu čtenářů - všechny interakce vč. implicitních (rating 0 = zalogováno bez známky). Popularita není kvalita: srovnej s v_top_books (Wild Animus story).'
-AS
-SELECT
-  b.title,
-  b.author,
-  COUNT(*)                                                   AS readers_total,
-  SUM(CASE WHEN r.is_explicit THEN 1 ELSE 0 END)             AS readers_explicit,
-  ROUND(AVG(CASE WHEN r.is_explicit THEN r.rating END), 2)   AS avg_rating,
-  COUNT(DISTINCT r.isbn)                                     AS editions,
-  MAX(b.image_url)                                           AS image_url
-FROM {silver}.ratings r
-JOIN {silver}.books b ON r.isbn = b.isbn
-GROUP BY b.title, b.author
-""")
-print(f"✓ {gold}.v_most_popular_books")
-
-# COMMAND ----------
-
-spark.sql(f"""
-CREATE OR REPLACE VIEW {gold}.v_books_by_year
-COMMENT 'Knihy s rokem prvního vydání (MIN přes vydání) - pro interaktivní "top N v období". Období = rok VYDÁNÍ, ratingy timestamp nemají.'
-AS
-WITH explicit AS (
-  SELECT r.rating, b.title, b.author, b.year_of_publication
-  FROM {silver}.ratings r
-  JOIN {silver}.books b ON r.isbn = b.isbn
-  WHERE r.is_explicit
-),
-g AS (SELECT AVG(rating) AS c FROM explicit),
-per_book AS (
-  SELECT title, author,
-         MIN(year_of_publication) AS year_of_publication,
-         COUNT(*) AS ratings_cnt,
-         AVG(rating) AS avg_rating
-  FROM explicit
-  GROUP BY title, author
-)
-SELECT title, author, year_of_publication, ratings_cnt,
-  ROUND(avg_rating, 2) AS avg_rating,
-  ROUND((ratings_cnt / (ratings_cnt + {m})) * avg_rating
-      + ({m} / (ratings_cnt + {m})) * g.c, 3) AS weighted_rating
-FROM per_book CROSS JOIN g
-""")
-print(f"✓ {gold}.v_books_by_year")
+print(f"✓ {gold}.v_authors")
 
 # COMMAND ----------
 
 spark.sql(f"""
 CREATE OR REPLACE VIEW {gold}.v_books_by_genre
-COMMENT 'Knihy rozpadlé po žánrech (subjects z Open Library, jen obohacené knihy). Subjects jsou knihovnické hlavičky s čárkami uvnitř ("Fiction, Fantasy, General") - rozpadají se na atomické tokeny, balast "General" se zahazuje.'
+COMMENT 'Grain: kniha × žánr (subjects z Open Library, jen obohacená podmnožina). Subjects jsou knihovnické hlavičky s čárkami uvnitř - rozpadají se na atomické tokeny, balast "General" se zahazuje.'
 AS
 WITH explicit AS (
   SELECT r.rating, b.title, b.author, b.isbn
@@ -203,8 +144,45 @@ print(f"✓ {gold}.v_books_by_genre")
 # COMMAND ----------
 
 spark.sql(f"""
+CREATE OR REPLACE VIEW {gold}.v_authors_by_year_publisher
+COMMENT 'Grain: autor × rok vydání × vydavatel. Průměry explicitních známek pro filtrovatelnou analytiku.'
+AS
+SELECT
+  b.author,
+  b.year_of_publication,
+  b.publisher,
+  COUNT(*)                AS ratings_cnt,
+  ROUND(AVG(r.rating), 2) AS avg_rating
+FROM {silver}.ratings r
+JOIN {silver}.books b ON r.isbn = b.isbn
+WHERE r.is_explicit AND b.author IS NOT NULL
+GROUP BY b.author, b.year_of_publication, b.publisher
+""")
+print(f"✓ {gold}.v_authors_by_year_publisher")
+
+# COMMAND ----------
+
+spark.sql(f"""
+CREATE OR REPLACE VIEW {gold}.v_avg_rating_by_year
+COMMENT 'Grain: rok vydání. Průměrná explicitní známka vážená přes hodnocení. Pozor při čtení: starší roky = survivorship bias, crawl končí 09/2004.'
+AS
+SELECT
+  b.year_of_publication,
+  COUNT(DISTINCT b.isbn)  AS books_cnt,
+  COUNT(*)                AS ratings_cnt,
+  ROUND(AVG(r.rating), 2) AS avg_rating
+FROM {silver}.ratings r
+JOIN {silver}.books b ON r.isbn = b.isbn
+WHERE r.is_explicit AND b.year_of_publication IS NOT NULL
+GROUP BY b.year_of_publication
+""")
+print(f"✓ {gold}.v_avg_rating_by_year")
+
+# COMMAND ----------
+
+spark.sql(f"""
 CREATE OR REPLACE VIEW {gold}.v_kpi_summary
-COMMENT 'KPI pro dashboard: velikost katalogu, interakce, podíl implicitních, globální průměr známek (C ze vzorce), efekt enrichmentu.'
+COMMENT 'Grain: celý dataset (1 řádek). KPI: katalog, interakce, podíl implicitních, globální průměr známek (C ze vzorce), efekt Open Library enrichmentu.'
 AS
 WITH r AS (
   SELECT rt.is_explicit, rt.rating, b.isbn IS NOT NULL AS has_book, b.source
@@ -226,22 +204,4 @@ print(f"✓ {gold}.v_kpi_summary")
 
 # COMMAND ----------
 
-spark.sql(f"""
-CREATE OR REPLACE VIEW {gold}.v_avg_rating_by_year
-COMMENT 'Průměrná explicitní známka podle roku vydání knihy (vážená přes hodnocení). Pozor při čtení: starší roky = survivorship bias, po 2004 crawl končí.'
-AS
-SELECT
-  b.year_of_publication,
-  COUNT(DISTINCT b.isbn)      AS books_cnt,
-  COUNT(*)                    AS ratings_cnt,
-  ROUND(AVG(r.rating), 2)     AS avg_rating
-FROM {silver}.ratings r
-JOIN {silver}.books b ON r.isbn = b.isbn
-WHERE r.is_explicit AND b.year_of_publication IS NOT NULL
-GROUP BY b.year_of_publication
-""")
-print(f"✓ {gold}.v_avg_rating_by_year")
-
-# COMMAND ----------
-
-print("Gold views vytvořeny.")
+print("Gold views vytvořeny (grain-based, 6 views).")

@@ -3,14 +3,16 @@
     {
       "name": "ds_kpi",
       "displayName": "KPI summary",
-      "queryLines": ["SELECT * FROM books.gold.v_kpi_summary"]
+      "queryLines": [
+        "SELECT * FROM books.gold.v_kpi_summary"
+      ]
     },
     {
       "name": "ds_top_books",
       "displayName": "Top 10 books all-time",
       "queryLines": [
         "SELECT title, author, ratings_cnt, avg_rating, weighted_rating \n",
-        "FROM books.gold.v_top_books \n",
+        "FROM books.gold.v_books \n",
         "ORDER BY weighted_rating DESC LIMIT 10"
       ]
     },
@@ -18,8 +20,8 @@
       "name": "ds_popular",
       "displayName": "Most popular books",
       "queryLines": [
-        "SELECT title, author, readers_total, readers_explicit, avg_rating \n",
-        "FROM books.gold.v_most_popular_books \n",
+        "SELECT title, author, readers_total, ratings_cnt, avg_rating \n",
+        "FROM books.gold.v_books \n",
         "ORDER BY readers_total DESC LIMIT 10"
       ]
     },
@@ -28,7 +30,7 @@
       "displayName": "Top 10 authors",
       "queryLines": [
         "SELECT author, ratings_cnt, avg_rating, weighted_rating \n",
-        "FROM books.gold.v_top_authors \n",
+        "FROM books.gold.v_authors \n",
         "WHERE ratings_cnt >= 25 \n",
         "ORDER BY weighted_rating DESC LIMIT 10"
       ]
@@ -48,7 +50,7 @@
       "displayName": "Top 10 books by period",
       "queryLines": [
         "SELECT title, author, year_of_publication, ratings_cnt, weighted_rating \n",
-        "FROM books.gold.v_books_by_year \n",
+        "FROM books.gold.v_books \n",
         "WHERE year_of_publication BETWEEN :year_range.min AND :year_range.max \n",
         "ORDER BY weighted_rating DESC LIMIT 10"
       ],
@@ -61,8 +63,12 @@
           "defaultSelection": {
             "range": {
               "dataType": "INTEGER",
-              "min": {"value": "1990"},
-              "max": {"value": "2004"}
+              "min": {
+                "value": "1990"
+              },
+              "max": {
+                "value": "2004"
+              }
             }
           }
         }
@@ -92,7 +98,14 @@
           "displayName": "Žánr",
           "dataType": "STRING",
           "defaultSelection": {
-            "values": {"dataType": "STRING", "values": [{"value": "Fiction"}]}
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "Fiction"
+                }
+              ]
+            }
           }
         }
       ]
@@ -116,7 +129,12 @@
               ]
             }
           },
-          "position": {"x": 0, "y": 0, "width": 12, "height": 2}
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 12,
+            "height": 2
+          }
         },
         {
           "widget": {
@@ -126,7 +144,12 @@
                 "name": "main_query",
                 "query": {
                   "datasetName": "ds_kpi",
-                  "fields": [{"name": "books_in_catalog", "expression": "`books_in_catalog`"}],
+                  "fields": [
+                    {
+                      "name": "books_in_catalog",
+                      "expression": "`books_in_catalog`"
+                    }
+                  ],
                   "disaggregated": true
                 }
               }
@@ -135,12 +158,23 @@
               "version": 2,
               "widgetType": "counter",
               "encodings": {
-                "value": {"fieldName": "books_in_catalog", "displayName": "Knihy"}
+                "value": {
+                  "fieldName": "books_in_catalog",
+                  "displayName": "Knihy"
+                }
               },
-              "frame": {"title": "Knihy v katalogu", "showTitle": true}
+              "frame": {
+                "title": "Knihy v katalogu",
+                "showTitle": true
+              }
             }
           },
-          "position": {"x": 0, "y": 2, "width": 3, "height": 3}
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 3,
+            "height": 3
+          }
         },
         {
           "widget": {
@@ -150,7 +184,12 @@
                 "name": "main_query",
                 "query": {
                   "datasetName": "ds_kpi",
-                  "fields": [{"name": "interactions_total", "expression": "`interactions_total`"}],
+                  "fields": [
+                    {
+                      "name": "interactions_total",
+                      "expression": "`interactions_total`"
+                    }
+                  ],
                   "disaggregated": true
                 }
               }
@@ -159,12 +198,23 @@
               "version": 2,
               "widgetType": "counter",
               "encodings": {
-                "value": {"fieldName": "interactions_total", "displayName": "Interakce"}
+                "value": {
+                  "fieldName": "interactions_total",
+                  "displayName": "Interakce"
+                }
               },
-              "frame": {"title": "Interakce (vč. implicitních)", "showTitle": true}
+              "frame": {
+                "title": "Interakce (vč. implicitních)",
+                "showTitle": true
+              }
             }
           },
-          "position": {"x": 3, "y": 2, "width": 3, "height": 3}
+          "position": {
+            "x": 3,
+            "y": 2,
+            "width": 3,
+            "height": 3
+          }
         },
         {
           "widget": {
@@ -174,7 +224,12 @@
                 "name": "main_query",
                 "query": {
                   "datasetName": "ds_kpi",
-                  "fields": [{"name": "ratings_explicit", "expression": "`ratings_explicit`"}],
+                  "fields": [
+                    {
+                      "name": "ratings_explicit",
+                      "expression": "`ratings_explicit`"
+                    }
+                  ],
                   "disaggregated": true
                 }
               }
@@ -183,12 +238,23 @@
               "version": 2,
               "widgetType": "counter",
               "encodings": {
-                "value": {"fieldName": "ratings_explicit", "displayName": "Známky"}
+                "value": {
+                  "fieldName": "ratings_explicit",
+                  "displayName": "Známky"
+                }
               },
-              "frame": {"title": "Explicitní známky (1–10)", "showTitle": true}
+              "frame": {
+                "title": "Explicitní známky (1–10)",
+                "showTitle": true
+              }
             }
           },
-          "position": {"x": 6, "y": 2, "width": 3, "height": 3}
+          "position": {
+            "x": 6,
+            "y": 2,
+            "width": 3,
+            "height": 3
+          }
         },
         {
           "widget": {
@@ -198,7 +264,12 @@
                 "name": "main_query",
                 "query": {
                   "datasetName": "ds_kpi",
-                  "fields": [{"name": "avg_rating_explicit", "expression": "`avg_rating_explicit`"}],
+                  "fields": [
+                    {
+                      "name": "avg_rating_explicit",
+                      "expression": "`avg_rating_explicit`"
+                    }
+                  ],
                   "disaggregated": true
                 }
               }
@@ -207,12 +278,23 @@
               "version": 2,
               "widgetType": "counter",
               "encodings": {
-                "value": {"fieldName": "avg_rating_explicit", "displayName": "Průměr"}
+                "value": {
+                  "fieldName": "avg_rating_explicit",
+                  "displayName": "Průměr"
+                }
               },
-              "frame": {"title": "Průměrná známka (C ze vzorce)", "showTitle": true}
+              "frame": {
+                "title": "Průměrná známka (C ze vzorce)",
+                "showTitle": true
+              }
             }
           },
-          "position": {"x": 9, "y": 2, "width": 3, "height": 3}
+          "position": {
+            "x": 9,
+            "y": 2,
+            "width": 3,
+            "height": 3
+          }
         },
         {
           "widget": {
@@ -223,13 +305,30 @@
                 "query": {
                   "datasetName": "ds_top_books",
                   "fields": [
-                    {"name": "title", "expression": "`title`"},
-                    {"name": "author", "expression": "`author`"},
-                    {"name": "ratings_cnt", "expression": "`ratings_cnt`"},
-                    {"name": "weighted_rating", "expression": "`weighted_rating`"}
+                    {
+                      "name": "title",
+                      "expression": "`title`"
+                    },
+                    {
+                      "name": "author",
+                      "expression": "`author`"
+                    },
+                    {
+                      "name": "ratings_cnt",
+                      "expression": "`ratings_cnt`"
+                    },
+                    {
+                      "name": "weighted_rating",
+                      "expression": "`weighted_rating`"
+                    }
                   ],
                   "disaggregated": true,
-                  "orders": [{"direction": "ASC", "expression": "`weighted_rating`"}]
+                  "orders": [
+                    {
+                      "direction": "ASC",
+                      "expression": "`weighted_rating`"
+                    }
+                  ]
                 }
               }
             ],
@@ -237,13 +336,33 @@
               "version": 3,
               "widgetType": "bar",
               "encodings": {
-                "x": {"fieldName": "weighted_rating", "scale": {"type": "quantitative"}, "displayName": "Vážený rating"},
-                "y": {"fieldName": "title", "scale": {"type": "categorical"}, "displayName": "Kniha"}
+                "x": {
+                  "fieldName": "weighted_rating",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Vážený rating"
+                },
+                "y": {
+                  "fieldName": "title",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Kniha"
+                }
               },
-              "frame": {"title": "Top 10 knih všech dob (vážený rating, vydání sloučena)", "showTitle": true}
+              "frame": {
+                "title": "Top 10 knih všech dob (vážený rating, vydání sloučena)",
+                "showTitle": true
+              }
             }
           },
-          "position": {"x": 0, "y": 5, "width": 6, "height": 6}
+          "position": {
+            "x": 0,
+            "y": 5,
+            "width": 6,
+            "height": 6
+          }
         },
         {
           "widget": {
@@ -254,11 +373,26 @@
                 "query": {
                   "datasetName": "ds_popular",
                   "fields": [
-                    {"name": "title", "expression": "`title`"},
-                    {"name": "author", "expression": "`author`"},
-                    {"name": "readers_total", "expression": "`readers_total`"},
-                    {"name": "readers_explicit", "expression": "`readers_explicit`"},
-                    {"name": "avg_rating", "expression": "`avg_rating`"}
+                    {
+                      "name": "title",
+                      "expression": "`title`"
+                    },
+                    {
+                      "name": "author",
+                      "expression": "`author`"
+                    },
+                    {
+                      "name": "readers_total",
+                      "expression": "`readers_total`"
+                    },
+                    {
+                      "name": "ratings_cnt",
+                      "expression": "`ratings_cnt`"
+                    },
+                    {
+                      "name": "avg_rating",
+                      "expression": "`avg_rating`"
+                    }
                   ],
                   "disaggregated": true
                 }
@@ -269,17 +403,40 @@
               "widgetType": "table",
               "encodings": {
                 "columns": [
-                  {"fieldName": "title", "displayName": "Kniha"},
-                  {"fieldName": "author", "displayName": "Autor"},
-                  {"fieldName": "readers_total", "displayName": "Čtenáři"},
-                  {"fieldName": "readers_explicit", "displayName": "Známek"},
-                  {"fieldName": "avg_rating", "displayName": "Průměr"}
+                  {
+                    "fieldName": "title",
+                    "displayName": "Kniha"
+                  },
+                  {
+                    "fieldName": "author",
+                    "displayName": "Autor"
+                  },
+                  {
+                    "fieldName": "readers_total",
+                    "displayName": "Čtenáři"
+                  },
+                  {
+                    "fieldName": "ratings_cnt",
+                    "displayName": "Známek"
+                  },
+                  {
+                    "fieldName": "avg_rating",
+                    "displayName": "Průměr"
+                  }
                 ]
               },
-              "frame": {"title": "Nejčtenější ≠ nejlepší (vč. implicitních interakcí)", "showTitle": true}
+              "frame": {
+                "title": "Nejčtenější ≠ nejlepší (vč. implicitních interakcí)",
+                "showTitle": true
+              }
             }
           },
-          "position": {"x": 6, "y": 5, "width": 6, "height": 6}
+          "position": {
+            "x": 6,
+            "y": 5,
+            "width": 6,
+            "height": 6
+          }
         },
         {
           "widget": {
@@ -290,12 +447,26 @@
                 "query": {
                   "datasetName": "ds_top_authors",
                   "fields": [
-                    {"name": "author", "expression": "`author`"},
-                    {"name": "ratings_cnt", "expression": "`ratings_cnt`"},
-                    {"name": "weighted_rating", "expression": "`weighted_rating`"}
+                    {
+                      "name": "author",
+                      "expression": "`author`"
+                    },
+                    {
+                      "name": "ratings_cnt",
+                      "expression": "`ratings_cnt`"
+                    },
+                    {
+                      "name": "weighted_rating",
+                      "expression": "`weighted_rating`"
+                    }
                   ],
                   "disaggregated": true,
-                  "orders": [{"direction": "ASC", "expression": "`weighted_rating`"}]
+                  "orders": [
+                    {
+                      "direction": "ASC",
+                      "expression": "`weighted_rating`"
+                    }
+                  ]
                 }
               }
             ],
@@ -303,13 +474,33 @@
               "version": 3,
               "widgetType": "bar",
               "encodings": {
-                "x": {"fieldName": "weighted_rating", "scale": {"type": "quantitative"}, "displayName": "Vážený rating"},
-                "y": {"fieldName": "author", "scale": {"type": "categorical"}, "displayName": "Autor"}
+                "x": {
+                  "fieldName": "weighted_rating",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Vážený rating"
+                },
+                "y": {
+                  "fieldName": "author",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Autor"
+                }
               },
-              "frame": {"title": "Top 10 autorů (min. 25 známek)", "showTitle": true}
+              "frame": {
+                "title": "Top 10 autorů (min. 25 známek)",
+                "showTitle": true
+              }
             }
           },
-          "position": {"x": 0, "y": 11, "width": 6, "height": 6}
+          "position": {
+            "x": 0,
+            "y": 11,
+            "width": 6,
+            "height": 6
+          }
         },
         {
           "widget": {
@@ -320,9 +511,18 @@
                 "query": {
                   "datasetName": "ds_trend",
                   "fields": [
-                    {"name": "year_of_publication", "expression": "`year_of_publication`"},
-                    {"name": "avg_rating", "expression": "`avg_rating`"},
-                    {"name": "ratings_cnt", "expression": "`ratings_cnt`"}
+                    {
+                      "name": "year_of_publication",
+                      "expression": "`year_of_publication`"
+                    },
+                    {
+                      "name": "avg_rating",
+                      "expression": "`avg_rating`"
+                    },
+                    {
+                      "name": "ratings_cnt",
+                      "expression": "`ratings_cnt`"
+                    }
                   ],
                   "disaggregated": true
                 }
@@ -332,8 +532,21 @@
               "version": 3,
               "widgetType": "line",
               "encodings": {
-                "x": {"fieldName": "year_of_publication", "scale": {"type": "quantitative"}, "displayName": "Rok vydání"},
-                "y": {"fieldName": "avg_rating", "scale": {"type": "quantitative", "domainMin": 6.5}, "displayName": "Průměrná známka"}
+                "x": {
+                  "fieldName": "year_of_publication",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Rok vydání"
+                },
+                "y": {
+                  "fieldName": "avg_rating",
+                  "scale": {
+                    "type": "quantitative",
+                    "domainMin": 6.5
+                  },
+                  "displayName": "Průměrná známka"
+                }
               },
               "frame": {
                 "title": "Průměrná známka podle roku vydání",
@@ -343,16 +556,28 @@
               }
             }
           },
-          "position": {"x": 6, "y": 11, "width": 6, "height": 6}
+          "position": {
+            "x": 6,
+            "y": 11,
+            "width": 6,
+            "height": 6
+          }
         },
         {
           "widget": {
             "name": "section-interactive",
             "multilineTextboxSpec": {
-              "lines": ["## Top podle období a žánru — parametry se aplikují před LIMIT 10"]
+              "lines": [
+                "## Top podle období a žánru — parametry se aplikují před LIMIT 10"
+              ]
             }
           },
-          "position": {"x": 0, "y": 17, "width": 12, "height": 1}
+          "position": {
+            "x": 0,
+            "y": 17,
+            "width": 12,
+            "height": 1
+          }
         },
         {
           "widget": {
@@ -363,8 +588,14 @@
                 "query": {
                   "datasetName": "ds_trend",
                   "fields": [
-                    {"name": "min(year_of_publication)", "expression": "MIN(`year_of_publication`)"},
-                    {"name": "max(year_of_publication)", "expression": "MAX(`year_of_publication`)"}
+                    {
+                      "name": "min(year_of_publication)",
+                      "expression": "MIN(`year_of_publication`)"
+                    },
+                    {
+                      "name": "max(year_of_publication)",
+                      "expression": "MAX(`year_of_publication`)"
+                    }
                   ],
                   "disaggregated": false
                 }
@@ -373,7 +604,12 @@
                 "name": "q_period",
                 "query": {
                   "datasetName": "ds_top_by_period",
-                  "parameters": [{"name": "year_range", "keyword": "year_range"}],
+                  "parameters": [
+                    {
+                      "name": "year_range",
+                      "keyword": "year_range"
+                    }
+                  ],
                   "disaggregated": false
                 }
               }
@@ -383,14 +619,28 @@
               "widgetType": "range-slider",
               "encodings": {
                 "fields": [
-                  {"fieldName": "year_of_publication", "queryName": "q_trend_year"},
-                  {"parameterName": "year_range", "queryName": "q_period"}
+                  {
+                    "fieldName": "year_of_publication",
+                    "queryName": "q_trend_year"
+                  },
+                  {
+                    "parameterName": "year_range",
+                    "queryName": "q_period"
+                  }
                 ]
               },
-              "frame": {"showTitle": true, "title": "Rok vydání (od–do)"}
+              "frame": {
+                "showTitle": true,
+                "title": "Rok vydání (od–do)"
+              }
             }
           },
-          "position": {"x": 0, "y": 18, "width": 6, "height": 2}
+          "position": {
+            "x": 0,
+            "y": 18,
+            "width": 6,
+            "height": 2
+          }
         },
         {
           "widget": {
@@ -400,7 +650,12 @@
                 "name": "q_genre_options",
                 "query": {
                   "datasetName": "ds_genres",
-                  "fields": [{"name": "genre", "expression": "`genre`"}],
+                  "fields": [
+                    {
+                      "name": "genre",
+                      "expression": "`genre`"
+                    }
+                  ],
                   "disaggregated": false
                 }
               },
@@ -408,7 +663,12 @@
                 "name": "q_genre",
                 "query": {
                   "datasetName": "ds_top_by_genre",
-                  "parameters": [{"name": "genre", "keyword": "genre"}],
+                  "parameters": [
+                    {
+                      "name": "genre",
+                      "keyword": "genre"
+                    }
+                  ],
                   "disaggregated": false
                 }
               }
@@ -418,14 +678,28 @@
               "widgetType": "filter-single-select",
               "encodings": {
                 "fields": [
-                  {"fieldName": "genre", "queryName": "q_genre_options"},
-                  {"parameterName": "genre", "queryName": "q_genre"}
+                  {
+                    "fieldName": "genre",
+                    "queryName": "q_genre_options"
+                  },
+                  {
+                    "parameterName": "genre",
+                    "queryName": "q_genre"
+                  }
                 ]
               },
-              "frame": {"showTitle": true, "title": "Žánr (z Open Library)"}
+              "frame": {
+                "showTitle": true,
+                "title": "Žánr (z Open Library)"
+              }
             }
           },
-          "position": {"x": 6, "y": 18, "width": 6, "height": 2}
+          "position": {
+            "x": 6,
+            "y": 18,
+            "width": 6,
+            "height": 2
+          }
         },
         {
           "widget": {
@@ -436,13 +710,30 @@
                 "query": {
                   "datasetName": "ds_top_by_period",
                   "fields": [
-                    {"name": "title", "expression": "`title`"},
-                    {"name": "author", "expression": "`author`"},
-                    {"name": "year_of_publication", "expression": "`year_of_publication`"},
-                    {"name": "weighted_rating", "expression": "`weighted_rating`"}
+                    {
+                      "name": "title",
+                      "expression": "`title`"
+                    },
+                    {
+                      "name": "author",
+                      "expression": "`author`"
+                    },
+                    {
+                      "name": "year_of_publication",
+                      "expression": "`year_of_publication`"
+                    },
+                    {
+                      "name": "weighted_rating",
+                      "expression": "`weighted_rating`"
+                    }
                   ],
                   "disaggregated": true,
-                  "orders": [{"direction": "ASC", "expression": "`weighted_rating`"}]
+                  "orders": [
+                    {
+                      "direction": "ASC",
+                      "expression": "`weighted_rating`"
+                    }
+                  ]
                 }
               }
             ],
@@ -450,13 +741,33 @@
               "version": 3,
               "widgetType": "bar",
               "encodings": {
-                "x": {"fieldName": "weighted_rating", "scale": {"type": "quantitative"}, "displayName": "Vážený rating"},
-                "y": {"fieldName": "title", "scale": {"type": "categorical"}, "displayName": "Kniha"}
+                "x": {
+                  "fieldName": "weighted_rating",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Vážený rating"
+                },
+                "y": {
+                  "fieldName": "title",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Kniha"
+                }
               },
-              "frame": {"title": "Top 10 knih ve zvoleném období", "showTitle": true}
+              "frame": {
+                "title": "Top 10 knih ve zvoleném období",
+                "showTitle": true
+              }
             }
           },
-          "position": {"x": 0, "y": 20, "width": 6, "height": 6}
+          "position": {
+            "x": 0,
+            "y": 20,
+            "width": 6,
+            "height": 6
+          }
         },
         {
           "widget": {
@@ -467,12 +778,26 @@
                 "query": {
                   "datasetName": "ds_top_by_genre",
                   "fields": [
-                    {"name": "title", "expression": "`title`"},
-                    {"name": "author", "expression": "`author`"},
-                    {"name": "weighted_rating", "expression": "`weighted_rating`"}
+                    {
+                      "name": "title",
+                      "expression": "`title`"
+                    },
+                    {
+                      "name": "author",
+                      "expression": "`author`"
+                    },
+                    {
+                      "name": "weighted_rating",
+                      "expression": "`weighted_rating`"
+                    }
                   ],
                   "disaggregated": true,
-                  "orders": [{"direction": "ASC", "expression": "`weighted_rating`"}]
+                  "orders": [
+                    {
+                      "direction": "ASC",
+                      "expression": "`weighted_rating`"
+                    }
+                  ]
                 }
               }
             ],
@@ -480,27 +805,67 @@
               "version": 3,
               "widgetType": "bar",
               "encodings": {
-                "x": {"fieldName": "weighted_rating", "scale": {"type": "quantitative"}, "displayName": "Vážený rating"},
-                "y": {"fieldName": "title", "scale": {"type": "categorical"}, "displayName": "Kniha"}
+                "x": {
+                  "fieldName": "weighted_rating",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Vážený rating"
+                },
+                "y": {
+                  "fieldName": "title",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Kniha"
+                }
               },
-              "frame": {"title": "Top 10 knih ve zvoleném žánru", "showTitle": true}
+              "frame": {
+                "title": "Top 10 knih ve zvoleném žánru",
+                "showTitle": true
+              }
             }
           },
-          "position": {"x": 6, "y": 20, "width": 6, "height": 6}
+          "position": {
+            "x": 6,
+            "y": 20,
+            "width": 6,
+            "height": 6
+          }
         }
       ]
     }
   ],
   "uiSettings": {
     "theme": {
-      "canvasBackgroundColor": {"light": "#FCFCFC", "dark": "#1F272D"},
-      "widgetBackgroundColor": {"light": "#FFFFFF", "dark": "#11171C"},
-      "widgetBorderColor": {"light": "#FFFFFF", "dark": "#11171C"},
-      "fontColor": {"light": "#11171C", "dark": "#E8ECF0"},
-      "selectionColor": {"light": "#2272B4", "dark": "#8ACAFF"},
+      "canvasBackgroundColor": {
+        "light": "#FCFCFC",
+        "dark": "#1F272D"
+      },
+      "widgetBackgroundColor": {
+        "light": "#FFFFFF",
+        "dark": "#11171C"
+      },
+      "widgetBorderColor": {
+        "light": "#FFFFFF",
+        "dark": "#11171C"
+      },
+      "fontColor": {
+        "light": "#11171C",
+        "dark": "#E8ECF0"
+      },
+      "selectionColor": {
+        "light": "#2272B4",
+        "dark": "#8ACAFF"
+      },
       "visualizationColors": [
-        "#4E79A7", "#F28E2C", "#E15759", "#76B7B2",
-        "#59A14F", "#EDC948", "#B07AA1"
+        "#4E79A7",
+        "#F28E2C",
+        "#E15759",
+        "#76B7B2",
+        "#59A14F",
+        "#EDC948",
+        "#B07AA1"
       ],
       "widgetHeaderAlignment": "LEFT"
     }
