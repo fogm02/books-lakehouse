@@ -69,6 +69,15 @@
       ]
     },
     {
+      "name": "ds_genres",
+      "displayName": "Genre picker options",
+      "queryLines": [
+        "SELECT genre, SUM(ratings_cnt) AS cnt \n",
+        "FROM books.gold.v_books_by_genre \n",
+        "GROUP BY genre ORDER BY cnt DESC LIMIT 100"
+      ]
+    },
+    {
       "name": "ds_top_by_genre",
       "displayName": "Top 10 books in genre",
       "queryLines": [
@@ -350,6 +359,17 @@
             "name": "param-year-range",
             "queries": [
               {
+                "name": "q_trend_year",
+                "query": {
+                  "datasetName": "ds_trend",
+                  "fields": [
+                    {"name": "min(year_of_publication)", "expression": "MIN(`year_of_publication`)"},
+                    {"name": "max(year_of_publication)", "expression": "MAX(`year_of_publication`)"}
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
                 "name": "q_period",
                 "query": {
                   "datasetName": "ds_top_by_period",
@@ -362,7 +382,10 @@
               "version": 2,
               "widgetType": "range-slider",
               "encodings": {
-                "fields": [{"parameterName": "year_range", "queryName": "q_period"}]
+                "fields": [
+                  {"fieldName": "year_of_publication", "queryName": "q_trend_year"},
+                  {"parameterName": "year_range", "queryName": "q_period"}
+                ]
               },
               "frame": {"showTitle": true, "title": "Rok vydání (od–do)"}
             }
@@ -373,6 +396,14 @@
           "widget": {
             "name": "param-genre",
             "queries": [
+              {
+                "name": "q_genre_options",
+                "query": {
+                  "datasetName": "ds_genres",
+                  "fields": [{"name": "genre", "expression": "`genre`"}],
+                  "disaggregated": false
+                }
+              },
               {
                 "name": "q_genre",
                 "query": {
@@ -386,7 +417,10 @@
               "version": 2,
               "widgetType": "filter-single-select",
               "encodings": {
-                "fields": [{"parameterName": "genre", "queryName": "q_genre"}]
+                "fields": [
+                  {"fieldName": "genre", "queryName": "q_genre_options"},
+                  {"parameterName": "genre", "queryName": "q_genre"}
+                ]
               },
               "frame": {"showTitle": true, "title": "Žánr (z Open Library)"}
             }
