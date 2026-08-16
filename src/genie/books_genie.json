@@ -1,0 +1,218 @@
+{
+  "version": 2,
+  "data_sources": {
+    "tables": [
+      {
+        "identifier": "books.gold.v_authors",
+        "column_configs": [
+          {
+            "column_name": "author",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "avg_rating",
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "ratings_cnt",
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "weighted_rating",
+            "enable_format_assistance": true
+          }
+        ]
+      },
+      {
+        "identifier": "books.gold.v_authors_by_year_publisher",
+        "column_configs": [
+          {
+            "column_name": "author",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "avg_rating",
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "publisher",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "ratings_cnt",
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "year_of_publication",
+            "enable_format_assistance": true
+          }
+        ]
+      },
+      {
+        "identifier": "books.gold.v_avg_rating_by_year",
+        "column_configs": [
+          {
+            "column_name": "avg_rating",
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "books_cnt",
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "ratings_cnt",
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "year_of_publication",
+            "enable_format_assistance": true
+          }
+        ]
+      },
+      {
+        "identifier": "books.gold.v_books",
+        "column_configs": [
+          {
+            "column_name": "author",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "avg_rating",
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "editions",
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "image_url",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "ratings_cnt",
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "readers_total",
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "title",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "weighted_rating",
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "year_of_publication",
+            "enable_format_assistance": true
+          }
+        ]
+      },
+      {
+        "identifier": "books.gold.v_books_by_genre",
+        "column_configs": [
+          {
+            "column_name": "author",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "avg_rating",
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "genre",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "ratings_cnt",
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "title",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "weighted_rating",
+            "enable_format_assistance": true
+          }
+        ]
+      },
+      {
+        "identifier": "books.gold.v_kpi_summary",
+        "column_configs": [
+          {
+            "column_name": "avg_rating_explicit",
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "books_in_catalog",
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "books_recovered",
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "implicit_pct",
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "interactions_total",
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "ratings_explicit",
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "ratings_orphaned",
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "ratings_recovered",
+            "enable_format_assistance": true
+          }
+        ]
+      }
+    ]
+  },
+  "instructions": {
+    "text_instructions": [
+      {
+        "id": "01f19992ea691c8e919b84df190b1879",
+        "content": [
+          "  Context: Book-Crossing dataset (BookCrossing.com crawl, Aug-Sep 2004).\n",
+          "  1.15M interactions, 308k books. Catalog enriched from Open Library.\n",
+          "\n",
+          "  Rules:\n",
+          "  - Rating 0 means an implicit interaction (user logged the book without\n",
+          "    grading it) - it is NOT a grade. All views already handle this:\n",
+          "    ratings_cnt / avg_rating / weighted_rating use explicit grades (1-10)\n",
+          "    only; readers_total counts ALL interactions including implicit.\n",
+          "  - \"Best / top rated\" questions: rank by weighted_rating (Bayesian average,\n",
+          "    m=25). Recommend a threshold ratings_cnt >= 25 for books and authors.\n",
+          "  - \"Most popular / most read\" questions: rank by readers_total in v_books.\n",
+          "  - \"Period / year\" questions: year_of_publication = PUBLICATION year of the\n",
+          "    edition (1450-2004; the crawl ended Sep 2004). Ratings have no timestamps.\n",
+          "  - Genres (v_books_by_genre) exist only for the subset enriched from Open\n",
+          "    Library; a book typically has multiple genres.\n",
+          "  - Authors are normalized name strings, not resolved identities - the same\n",
+          "    person may appear under different spellings.\n",
+          "  - Old publication years look better due to survivorship bias - mention it\n",
+          "    when asked about rating trends over years."
+        ]
+      }
+    ]
+  }
+}

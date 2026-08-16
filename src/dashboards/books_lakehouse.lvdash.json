@@ -868,6 +868,11 @@
         "#B07AA1"
       ],
       "widgetHeaderAlignment": "LEFT"
+    },
+    "genieSpace": {
+      "isEnabled": true,
+      "overrideId": "01f1999236fa13989dfccac258528921",
+      "enablementMode": "ENABLED"
     }
   }
 }
